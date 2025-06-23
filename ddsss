@@ -1,0 +1,3213 @@
+repeat task.wait() until game:IsLoaded()
+_G.WindUI = nil
+local startTime = tick()
+local loading = true
+local timeout = 10
+local windURL = "https://cdn.jsdelivr.net/gh/shanmiru/windtest@main/wind.lua"
+task.spawn(function() local d="" while loading do d=d.."." if#d>3 then d="" end print("🔄 Loading WindUI"..d) task.wait(0.5) end end)
+task.spawn(function() local s,r=pcall(function() return loadstring(game:HttpGet(windURL, true))() end) loading=false if s then _G.WindUI=r print(string.format("✅ WindUI loaded in %.2f seconds",tick()-startTime)) else warn("❌ Failed to load WindUI:",r) end end)
+local waitStart = tick()
+repeat
+    task.wait(0.1)
+    if tick() - waitStart > timeout then
+        warn("⏰ WindUI load timed out after 10 seconds")
+        break
+    end
+until _G.WindUI
+local success, result = pcall(function() return loadstring(game:HttpGet("https://raw.githubusercontent.com/xrtt2025/weliveoneiloveyoueveryone/main/wesuckcodingright.lua", true))() end)
+if not success then warn("❌ Failed to load initial script") return end
+if not _G.runService or not _G.players or not _G.lighting then warn("⚠️ Critical services failed to load") return end
+local localPlayer    = _G.players.LocalPlayer
+local playerGui      = localPlayer:WaitForChild("PlayerGui", 10)
+local camera         = workspace.CurrentCamera
+local localPlayerBag = localPlayer.Backpack
+local ByteNetReliable = _G.replicatedStorage:WaitForChild("ByteNetReliable", 10)
+local harvestBuffer   = buffer.fromstring("\1\1\0\1")
+
+local function getCharacter() return localPlayer and(localPlayer.Character or localPlayer.CharacterAdded:Wait())end
+local function getCurrentCharacter() return localPlayer and localPlayer.Character end
+local function getHumanoidRootPart() local char = getCurrentCharacter() return char and char:FindFirstChild("HumanoidRootPart") end
+local function getHumanoid() local char = getCurrentCharacter() return char and char:FindFirstChild("Humanoid") end
+local character = getCharacter()
+local espParent = _G.coreGui
+if gethui then local success, result = pcall(gethui) if success and result then espParent = result end end
+
+local espContainer = Instance.new("Folder") espContainer.Name = "ESPContainer" espContainer.Parent = espParent
+
+local gameName = "XTT [Grow a Garden]"
+if _G.marketplaceService then local success, productInfo = pcall(function() return _G.marketplaceService:GetProductInfo(game.PlaceId) end)
+    if success and productInfo and productInfo.Name then
+        gameName = productInfo.Name
+    end
+end
+
+local function unequip_tool() for _,child in ipairs(character:GetChildren())do if child:IsA("Tool")then child.Parent=localPlayerBag end end end
+
+local function GetConfigValue(Key, default)
+    if type(_G.Configuration) == "table" and _G.Configuration[Key] ~= nil then
+        return _G.Configuration[Key]
+    else
+        return default
+    end
+end
+
+local function formatNumber(value, useCommaDecimal)
+    local formatted = tostring(value)
+    repeat
+        formatted = formatted:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+    until not formatted:find("^(-?%d+)(%d%d%d)")
+
+    if useCommaDecimal then
+        formatted = formatted:gsub('%.', ',')
+    end
+    return formatted
+end
+
+
+-- Hub Data
+_G.gameData = {
+    Name   = gameName,
+    V      = _G.getService("ReplicatedFirst").GameVersion.Value,
+    Author = "TempesT",
+    ID     = 126884695634066, 
+    AdsLink = "https://raw.githubusercontent.com/xrtt2025/weliveoneiloveyoueveryone/refs/heads/main/adoptplease.lua",
+    DiscordLink = "https://discord.gg/zc7cc8Vh",
+    release = false,
+    keysite = "https://raw.githubusercontent.com/xrtt2025/weliveoneiloveyoueveryone/main/gag.txt",
+    count = "http://srv537432.hstgr.cloud/test.php",
+}
+
+local key = "iloveseiina2005"
+task.spawn(function()local HttpService=_G.getService("HttpService")local success,fetchedKey=pcall(function()return game:HttpGet(_G.gameData.keysite,true):gsub("%s+","")end)if success and fetchedKey and fetchedKey~=""then key=fetchedKey end end)
+
+local windowOptions = {
+    Title = _G.gameData.Name .. " | " .. _G.gameData.V,
+    Icon = "door-open",
+    Author = "TempesT",
+    Folder = "XTTHub" .. _G.gameData.ID,
+    Size = UDim2.fromOffset(260, 340),
+    Transparent = true,
+    Theme = "Dark",
+    SideBarWidth = 200,
+    BackgroundImageTransparency = 0.42,
+    HideSearchBar = false,
+    ScrollBarEnabled = true,
+    User = {
+        Enabled = false,
+        Anonymous = true,
+    },
+}
+
+if _G.gameData.release then
+    local successAds, fetchAds =
+        pcall(
+        function()
+            return game:HttpGet(_G.gameData.AdsLink):gsub("%s+", "")
+        end
+    )
+    local successCount, count =
+        pcall(
+        function()
+            return game:HttpGet(_G.gameData.count):gsub("%s+", "")
+        end
+    )
+
+    if not successAds or fetchAds == nil or fetchAds == "" then
+        task.wait(1 + math.random())
+        localPlayer:Kick("❌ Unauthorized access.\nKey system validation failed.")
+        return
+    end
+
+    if
+        not pcall(
+            function()
+                game:HttpGet("https://www.google.com")
+            end
+        )
+     then
+        localPlayer:Kick("❌ HTTP requests are required to use this script.")
+        return
+    end
+    if not _G.gameData or not _G.gameData.AdsLink then
+        localPlayer:Kick("Tampering detected. Missing key data.")
+        return
+    end
+    windowOptions.KeySystem = {
+        Key = {key},
+        Note = "We play for fun, not for money.\nIf you want to support us,\nplease consider donating or watching ads.",
+        URL = fetchAds,
+        SaveKey = false
+    }
+end
+
+_G.Window        = _G.WindUI:CreateWindow(windowOptions)
+_G.ConfigManager = _G.Window.ConfigManager
+_G.myConfig   = _G.ConfigManager:CreateConfig("XTTHub" .. _G.gameData.ID)
+
+if game.PlaceId ~= _G.gameData.ID then localPlayer:Kick("Wrong place wrong game.") return end
+
+task.spawn(function()_G.notify("Game Supported",3,"atom")task.wait(1)_G.notify("Hub Version: ".._G.gameData.V,3,"activity")task.wait(1)_G.notify("Loading Features",3,"ellipsis")end)
+
+_G.Window:DisableTopbarButtons({ "Close" })
+
+--// Tabs
+local mainTab = _G.Window:Tab({ Title = "Main", Icon = "house" })
+
+task.spawn(function() local pg=playerGui:WaitForChild("Teleport_UI",10) local f=pg and pg:WaitForChild("Frame", 10) if f then for _,n in ipairs({"Gear","Pets"}) do local e=f:WaitForChild(n, 10) if e and not e.Visible then e.Visible=true end task.wait() end else _G.notify("Teleport UI frame missing",3,"x") end end)
+
+local Connections = {}
+
+local function addConnection(n,c) if not n or not c then return end if Connections[n] then pcall(function() Connections[n]:Disconnect() end) end Connections[n]=c end
+local function cleanupConnections(n) if n then if Connections[n] then pcall(function() Connections[n]:Disconnect() end) Connections[n]=nil end else for k,v in pairs(Connections) do if v then pcall(function() v:Disconnect() end) end end Connections={} end end
+local function safeGet(i,...) for _,n in ipairs({...}) do if not i or not i:WaitForChild(n, 10) then return nil end i=i:WaitForChild(n, 10) end return i end
+
+_G.Remotes = nil
+_G.useTrash = false
+_G.dataLoaded = false
+_G.dataFolder = nil
+_G.modules = nil
+_G.requiredCratesData = nil
+_G.requiredItemData = nil
+_G.requiredSeedData = nil
+_G.requiredGearData = nil
+_G.requiredPetEggData = nil
+_G.requiredEventShopData = nil
+_G.dataService = nil
+_G.calculatePetValue = nil
+_G.calculatePlantVal = nil
+_G.gameEvents = nil
+
+task.spawn(function()
+    _G.modules    = _G.waitFor("Modules", _G.replicatedStorage)
+    _G.dataFolder = _G.waitFor("Data", _G.replicatedStorage)
+    _G.gameEvents = _G.waitFor("GameEvents", _G.replicatedStorage)
+
+    _G.Remotes = {
+        buyEventShopStockRemote =  _G.waitFor("BuyEventShopStock",  _G.gameEvents),
+        buySeedStockRemote      =  _G.waitFor("BuySeedStock",  _G.gameEvents),
+        buyGearStockRemote      =  _G.waitFor("BuyGearStock",  _G.gameEvents),
+        buyPetEggRemote         =  _G.waitFor("BuyPetEgg",  _G.gameEvents),
+        buyItemRemote           =  _G.waitFor("BuyCosmeticItem",  _G.gameEvents),
+        buyCratesRemote         =  _G.waitFor("BuyCosmeticCrate",  _G.gameEvents)
+    }
+
+    local success, result = pcall(function()
+        local data = {}
+        data.DataService      = require(_G.waitFor("DataService", _G.modules))
+        return data
+    end)
+
+    if success and result then
+        _G.dataService           = result.DataService
+        print("✅ OP executor loaded successfully.")
+    else
+        warn("⚠️ Falling back to trash executor due to load failure.")
+        localPlayer:Kick("we doesn't support this executor")
+    end
+end)
+
+_G.FavoriteToolRemote = _G.gameEvents:WaitForChild("FavoriteToolRemote")
+
+local function getPlayerData() local data = _G.dataService:GetData() return data, data and data.Sheckles, data and data.SpecialCurrency and data.SpecialCurrency.Honey end
+local function getStock(name) local data = _G.dataService:GetData() return data and data[name] and data[name].Stocks or {} end
+local function getStockchild(parent, child) local data = _G.dataService:GetData() return data and data[parent] and data[parent][child] or {} end
+
+local function GetCrops()local Crops={}local HoldingCrop=nil if not localPlayerBag or #localPlayerBag:GetChildren()==0 then return Crops end HoldingCrop=_G.GetTool(character)for _,Tool in ipairs(localPlayerBag:GetChildren())do if Tool:GetAttribute("b")=="j"then table.insert(Crops,Tool)end end if HoldingCrop and HoldingCrop:GetAttribute("b")=="j"and not table.find(Crops,HoldingCrop)then table.insert(Crops,HoldingCrop)end return Crops end
+
+
+local shops = {
+    Seed = {
+        gui = playerGui:FindFirstChild("Seed_Shop")
+    },
+    BeeEvent = {
+        gui = playerGui:FindFirstChild("HoneyEventShop_UI")
+    },
+    Cosmetic = {
+        gui = playerGui:FindFirstChild("CosmeticShop_UI"),
+        exitPath = { "Main", "Holder", "Header", "ExitButton" }
+    },
+    Gear = {
+        gui = playerGui:FindFirstChild("Gear_Shop")
+    },
+    Daily = {
+        gui = playerGui:FindFirstChild("DailyQuests_UI")
+    },
+    Event = {
+        gui = playerGui:FindFirstChild("EventShop_UI")
+    }
+}
+
+local defaultExitPath = { "Frame", "Frame", "ExitButton" }
+
+local exitConnections = {}
+
+local function getExitButton(gui,path)local current=gui for _,segment in ipairs(path)do task.wait()current=current:WaitForChild(segment,10)if not current then return nil end end return current end
+
+local function toggleShop(name)local shopData=shops[name]local shop=shopData and shopData.gui if not shop then _G.notify("Event Shop Ended - "..name,3,"check")warn("[toggleShop] GUI does not exist for shop:",name)return end for otherName,otherData in pairs(shops)do if otherName~=name and otherData.gui and otherData.gui.Enabled then otherData.gui.Enabled=false _G.notify(otherName.." closed",2,"check")task.wait(0.05)end end if shop.Enabled then shop.Enabled=false _G.notify(name.." closed",3,"check")return end shop.Enabled=true _G.notify(name.." opened",3,"check")if exitConnections[name]then pcall(function()exitConnections[name]:Disconnect()end)end local exitButton=getExitButton(shop,shopData.exitPath or defaultExitPath)if exitButton then exitConnections[name]=exitButton.Activated:Connect(function()shop.Enabled=false _G.notify(name.." closed",3,"check")end)else warn("[toggleShop] No exit button found for shop:",name)end end
+
+mainTab:Section({ Title = "X button is working perfectly.\nYou can close the shop with it.", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+local AutoHideUi = false
+_G.AutoHideUi = mainTab:Toggle({ Title = "Auto Hide UI", Icon = "ban", Desc  = "Automatically hides the UI after clicking any of these options.", Default = false, Callback = function(state) AutoHideUi = state if state then _G.notify("Auto Hide UI Enabled", 3, "check") else _G.notify("Auto Hide UI Disabled", 3, "x") end end }) task.wait()
+_G.myConfig:Register( "AutoHideUi", _G.AutoHideUi )
+
+_G.Notification=mainTab:Toggle({Title="Notification",Icon="badge-info",Desc="Sends you notifications at bottom right corner for every action you do.",Default=true,Callback=function(state)_G.isShowNotification=state end}) task.wait()
+_G.myConfig:Register( "Notification", _G.Notification )
+
+
+local SaveConfig = mainTab:Button({ Title = "Save Config", Locked = true, Desc = "Save your current settings to the config file.",
+    Callback = function()
+        pcall(function() _G.myConfig:Save() _G.notify("Config Saved Successfully", 3, "check") end)
+    end
+})
+task.wait()
+
+local LoadConfig = mainTab:Button({ Title = "Load Config", Locked = true, Desc = "Loads your current settings from the config file.",
+    Callback = function()
+        pcall(function() _G.myConfig:Load() _G.notify("Config Loaded Successfully", 3, "check") end)
+    end
+})
+task.wait()
+
+mainTab:Button({ Title = "Seed Shop",          Callback = function() pcall( function() toggleShop("Seed")     if AutoHideUi then _G.Window:Close()() end end) end }) task.wait()
+mainTab:Button({ Title = "Bee Event Shop",     Callback = function() pcall( function() toggleShop("BeeEvent") if AutoHideUi then _G.Window:Close()() end end) end }) task.wait()
+mainTab:Button({ Title = "Gear Shop",          Callback = function() pcall( function() toggleShop("Gear")     if AutoHideUi then _G.Window:Close()() end end) end }) task.wait()
+mainTab:Button({ Title = "Cosmetic Shop",      Callback = function() pcall( function() toggleShop("Cosmetic") if AutoHideUi then _G.Window:Close()() end end) end }) task.wait()
+mainTab:Button({ Title = "Daily Quest",        Callback = function() pcall( function() toggleShop("Daily")    if AutoHideUi then _G.Window:Close()() end end) end }) task.wait()
+
+local autoFarmTab         = _G.Window:Tab({ Title = "Auto Farm",          Icon = "boxes" }) task.wait()
+local autoFarmTabSettings = _G.Window:Tab({ Title = "Auto Farm Settings", Icon = "cog" }) task.wait()
+
+local AutoFarmSpeedGlobal = 0
+local speedfarm = autoFarmTabSettings:Slider({
+    Title = "Auto Farm Speed (Global)",
+    Step = 0.1,
+    Value = {
+        Min = 0,
+        Max = 120,
+        Default = 0,
+    },
+    Callback = function(value)
+        AutoFarmSpeedGlobal = value
+    end
+})
+speedfarm:Set(GetConfigValue("FarmSpeed", 0.1))
+
+local AutoPlantSpeed = 0
+local plantSpeed = autoFarmTabSettings:Slider({
+    Title = "Auto Plant Speed (Global)",
+    Step = 0.1,
+    Value = {
+        Min = 0,
+        Max = 120,
+        Default = 0,
+    },
+    Callback = function(value)
+        AutoPlantSpeed = value
+    end
+})
+speedfarm:Set(GetConfigValue("plantSpeed", 0.1))
+
+local eventList = playerGui:FindFirstChild("Bottom_UI"):FindFirstChild("BottomFrame"):FindFirstChild("Holder")
+
+local isEventActive = false
+local ifEventActiveDoNotCollect = {}
+
+local eventFrameNames = {}
+
+for _, frame in ipairs(eventList:FindFirstChild("List"):GetChildren()) do if frame:IsA("Frame") and frame.Name ~= "Luck" then table.insert(eventFrameNames, frame.Name) task.wait() end end
+table.sort(eventFrameNames)
+
+autoFarmTabSettings:Section({ Title = "-- Do not collect any fruits while this event is active. --", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+local function checkEventStatus() local f=false if eventList.Visible then for _,v in ipairs(eventList:FindFirstChild("List"):GetChildren()) do if v:IsA("Frame") and v.Visible and ifEventActiveDoNotCollect[v.Name] then f=true break end end end isEventActive=f return f end
+local debounce = false
+local function checkEventStatusDebounced() if debounce then return end debounce=true task.spawn(function() checkEventStatus() task.wait() debounce=false end) end
+
+for _, name in ipairs(eventFrameNames) do
+    local toggle = autoFarmTabSettings:Toggle({
+        Title = name, 
+        Default = false,
+        Icon = "ban",
+        Callback = function(state)
+            ifEventActiveDoNotCollect[name] = state
+            checkEventStatusDebounced()
+        end,
+    }) _G.myConfig:Register("Donotcollectif"..name, toggle) task.wait()
+end
+
+task.spawn(function()
+    while task.wait(0.5) do 
+        checkEventStatus()
+    end
+end)
+
+local Farm, ImportantFolder, Plants_Physical, Objects_Physical
+
+function GetPlayerFarm(Player) if not Player then return end for _,Farm in ipairs(_G.Farms:GetChildren()) do local i=Farm:WaitForChild("Important",60) if i then local d=i:WaitForChild("Data",60) if d then local o=d:WaitForChild("Owner",60) if o and o.Value==Player then return Farm,i,i:WaitForChild("Plants_Physical",60),i:WaitForChild("Objects_Physical",60) end end end end end
+
+autoFarmTab:Section({ Title = "-- Select to collect --", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+local function refreshFruitsList(d,p) _,_,Plants_Physical,_=GetPlayerFarm(p) local f={} if not Plants_Physical then warn("Plants_Physical folder not found") return end for _,v in ipairs(Plants_Physical:GetChildren()) do if v:IsA("Model") then local n=v.Name if not table.find(f,n) then table.insert(f,n) end end end table.sort(f) d:Refresh(f) end
+
+local fruitDropdown=autoFarmTab:Dropdown({Title="Your Fruits/Plants",Values={"Please Refresh First"},Value={},Multi=true,AllowNone=true,Callback=function(option)end}) task.wait()
+
+autoFarmTab:Button({Title="Select all",Callback=function() _,_,Plants_Physical,_=GetPlayerFarm(localPlayer.Name) local f={} if not Plants_Physical then warn("Plants_Physical folder not found") return end for _,v in ipairs(Plants_Physical:GetChildren()) do if v:IsA("Model") then local n=v.Name if not table.find(f,n) then table.insert(f,n) end end end table.sort(f) fruitDropdown:Select(f) fruitDropdown:Refresh(f) end})
+
+autoFarmTab:Button({ Title = "Refresh List", Callback = function() refreshFruitsList(fruitDropdown, localPlayer.Name) _G.notify("Fruits refreshed", 3, "check") end, }) task.wait()
+
+local ignoreMutation = {}
+
+autoFarmTabSettings:Section({ Title = "-- Ignore collecting mutations. --", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+for _, mutation in ipairs(_G.sortedMutations) do local toggle = autoFarmTabSettings:Toggle({ Title = mutation, Default = false, Callback = function(state) ignoreMutation[mutation] = state if state then _G.notify("Ignoring " .. mutation, 3, "check") else _G.notify("No longer ignoring " .. mutation .. " Mutation", 3, "x") end end, }); _G.myConfig:Register("IgnoreCollecting"..mutation, toggle) task.wait() end
+
+local donotPlantSeed = {}
+
+autoFarmTabSettings:Section({ Title = "-- Auto-Hold Seed Settings --", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+for _, seed in ipairs(_G.seedList) do local t = autoFarmTabSettings:Toggle({Title = "Block " .. seed, Icon = "ban", Default = false, Callback = function(s) donotPlantSeed[seed] = s task.spawn(checkEventStatus) end}) _G.myConfig:Register("DonotPlant"..seed, t) task.wait() end
+
+local autoFarmRunning = false
+local collectFruitThread = nil
+
+local function collectSelectedFruit()
+    local eventPausedNotified = false
+    while autoFarmRunning do
+        local currentEventStatus = checkEventStatus()
+        if currentEventStatus then
+            if not eventPausedNotified then
+                _G.notify("Paused: A selected event is active. Waiting...", 3, "triangle-alert")
+                eventPausedNotified = true
+            end
+            while checkEventStatus() and autoFarmRunning do
+                task.wait(1)
+            end
+            if autoFarmRunning then
+                _G.notify("Resuming selected fruit collection - event ended", 2, "check")
+                eventPausedNotified = false
+            end
+        end
+        if not autoFarmRunning then
+            break
+        end
+        local canContinue = true
+        local targetFruits = {}
+        if canContinue then
+            targetFruits = _G.parseTargetFruits(fruitDropdown)
+            if #targetFruits == 0 then
+                _G.notify("No fruits selected", 3, "check")
+                canContinue = false
+            end
+        end
+        if not canContinue then
+            task.wait(2)
+        else
+            _, _, Plants_Physical, _ = GetPlayerFarm(localPlayer.Name)
+            for _, plant in ipairs(Plants_Physical:GetChildren()) do
+                if not autoFarmRunning or checkEventStatus() then
+                    break
+                end
+                if table.find(targetFruits, plant.Name:lower()) then
+                    local fruitsFolder = plant:FindFirstChild("Fruits")
+                    if fruitsFolder then
+                        for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                            if not autoFarmRunning or checkEventStatus() then
+                                break
+                            end
+                            if not _G.hasAnyMutation(fruit, ignoreMutation) and not fruit:GetAttribute("Favorited") then
+                                pcall(
+                                    function()
+                                        ByteNetReliable:FireServer(harvestBuffer, {fruit})
+                                        _G.notify("Collected " .. fruit.Name, 1, "check")
+                                    end
+                                )
+                                task.wait(AutoFarmSpeedGlobal)
+                            end
+                        end
+                    else
+                        if not _G.hasAnyMutation(plant, ignoreMutation) then
+                            pcall(
+                                function()
+                                    ByteNetReliable:FireServer(harvestBuffer, {plant})
+                                    _G.notify("Collected " .. plant.Name, 1, "check")
+                                end
+                            )
+                            task.wait(AutoFarmSpeedGlobal)
+                        end
+                    end
+                end
+            end
+            task.wait(1)
+        end
+    end
+    collectFruitThread = nil
+end
+
+autoFarmTab:Toggle({Title="Collect Selected Fruits",Default=false,Callback=function(s) autoFarmRunning=s if s then _G.notify("Auto Farm Enabled",3,"check") if not collectFruitThread then collectFruitThread=task.spawn(collectSelectedFruit) end else _G.notify("Auto Farm Disabled",3,"x") end end}) task.wait()
+
+autoFarmTab:Section({ Title = "-- Collect None-Mutated --", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+local runningCollectNoneMutated = false
+local collectNoneThread = nil
+
+local function collectNoneMutated()
+    local eventPausedNotified = false
+    while runningCollectNoneMutated do
+        local currentEventStatus = checkEventStatus()
+        if currentEventStatus then
+            if not eventPausedNotified then
+                _G.notify("Paused: A selected event is active. Waiting...", 3, "triangle-alert")
+                eventPausedNotified = true
+            end
+            while checkEventStatus() and runningCollectNoneMutated do
+                task.wait(1)
+            end
+            if runningCollectNoneMutated then
+                _G.notify("Resuming auto collection - event ended", 2, "check")
+                eventPausedNotified = false
+            end
+        end
+        if not runningCollectNoneMutated then
+            break
+        end
+        _, _, Plants_Physical, _ = GetPlayerFarm(localPlayer.Name)
+        for _, plant in ipairs(Plants_Physical:GetChildren()) do
+            if not runningCollectNoneMutated or checkEventStatus() then
+                break
+            end
+            if plant:IsA("Model") then
+                local fruitsFolder = plant:FindFirstChild("Fruits")
+                if fruitsFolder then
+                    for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                        if not runningCollectNoneMutated or checkEventStatus() then
+                            break
+                        end
+                        if not _G.hasAnyMutation(fruit, _G.sortedMutations) and not fruit:GetAttribute("Favorited") then
+                            pcall(
+                                function()
+                                    ByteNetReliable:FireServer(harvestBuffer, {fruit})
+                                    _G.notify("Collected " .. fruit.Name, 1, "check")
+                                end
+                            )
+                            task.wait(AutoFarmSpeedGlobal)
+                        end
+                    end
+                elseif not _G.hasAnyMutation(plant, _G.sortedMutations) and not plant:GetAttribute("Favorited") then
+                    pcall(
+                        function()
+                            ByteNetReliable:FireServer(harvestBuffer, {plant})
+                            _G.notify("Collected " .. plant.Name, 1, "check")
+                        end
+                    )
+                    task.wait(AutoFarmSpeedGlobal)
+                end
+            end
+        end
+        task.wait(1)
+    end
+    collectNoneThread = nil
+end
+
+_G.AutocollectNoneMutated =
+    autoFarmTab:Toggle(
+    {Title = "Auto-Collect Non-Mutated", Icon = "check", Default = false, Callback = function(s)
+            runningCollectNoneMutated = s
+            if s then
+                _G.notify("Auto-collecting non-mutated fruits now", 3, "check")
+                if not collectNoneThread then
+                    collectNoneThread = task.spawn(collectNoneMutated)
+                end
+            else
+                _G.notify("Auto collection disabled.", 3, "x")
+            end
+        end}
+)
+_G.AutocollectNoneMutated:Set(GetConfigValue("collectNoneMutated", false))
+task.wait()
+
+_G.myConfig:Register( "collectnoneMutated", _G.AutocollectNoneMutated)
+
+autoFarmTab:Section({ Title = "-- Hide proximity prompt. --", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+local lastPromptUpdate = 0
+local promptLoopStop = false
+local promptLoopThread = nil
+
+_G.prompts = autoFarmTab:Toggle({
+    Title = "Hide all prompts (fruits/plants).",
+    Icon = "eye-off",
+    Callback = function(state)
+        if state then
+            promptLoopStop = false
+            if not promptLoopThread then
+                promptLoopThread = task.spawn(function()
+                    while not promptLoopStop do
+                        if tick() - lastPromptUpdate >= 1 then
+                            lastPromptUpdate = tick()
+                            _G.togglePrompts(false)
+                        end
+                        task.wait(0.2)
+                    end
+                    promptLoopThread = nil 
+                end)
+            end
+        else
+            promptLoopStop = true
+            _G.togglePrompts(true)
+            _G.notify("Hiding Proximity Prompt Disabled", 3, "check")
+        end
+    end
+}) task.wait()
+_G.myConfig:Register( "prompts", _G.prompts)
+
+autoFarmTab:Section({ Title = "-- Auto Farm(Hold Seed To Plant in 1 area (stacks)) --", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+local AutoPlantSeed = false
+local autoPlantThread = nil
+
+local plantEvent = _G.gameEvents:FindFirstChild("Plant_RE")
+
+local function autoplantSeed()
+    local hrp = getHumanoidRootPart()
+    if not hrp then return end
+
+    local plantPosition = hrp.Position -- Save position only once
+    local char = getCurrentCharacter()
+
+    while AutoPlantSeed do
+        if char then
+            for _, tool in ipairs(char:GetChildren()) do
+                if tool:IsA("Tool") and string.find(tool.Name:lower(), "seed") then
+                    local args = { Vector3.new(plantPosition.X, plantPosition.Y, plantPosition.Z), tool:GetAttribute("Seed") }
+                    pcall(function() plantEvent:FireServer(unpack(args)) end)
+                    task.wait(AutoPlantSpeed)
+                end
+            end
+        end
+        task.wait()
+    end
+end
+
+local AutoHoldSeedCheck = false
+
+local function autoholdSeed()
+    while AutoHoldSeedCheck do
+        local hrp = getHumanoidRootPart()
+        local char = getCurrentCharacter()
+        if not hrp or not char then return end
+
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") and string.find(tool.Name:lower(), "seed") and tool:GetAttribute("b") ~= "a" then
+                for blockedSeed, isEnabled in pairs(donotPlantSeed) do
+                    if isEnabled and string.find(tool.Name:lower(), blockedSeed:lower()) then
+                        tool.Parent = localPlayerBag
+                    end
+                end
+            end
+        end
+
+        for _, tool in ipairs(localPlayerBag:GetChildren()) do
+            if tool:IsA("Tool") and string.find(tool.Name:lower(), "seed") and tool:GetAttribute("b") ~= "a" then
+                local shouldSkip = false
+                for blockedSeed, isEnabled in pairs(donotPlantSeed) do
+                    if isEnabled and string.find(tool.Name:lower(), blockedSeed:lower()) then
+                        shouldSkip = true
+                        break
+                    end
+                end
+
+                if not shouldSkip then
+                    tool.Parent = char
+                end
+            end
+        end
+
+        task.wait(1)
+    end
+end
+
+autoFarmTab:Toggle({ Title = "-- Auto Hold Seed --", Desc = "Automatically Hold seeds for auto plant", Default = false, Icon = "hand",
+    Callback = function(enabled)
+        AutoHoldSeedCheck = enabled
+        if enabled then
+            task.spawn(autoholdSeed)
+            _G.notify("Auto Plant Seed Enabled", 3, "check")
+        else
+            unequip_tool()
+            _G.notify("Auto Plant Seed Disabled", 3, "x")
+        end
+    end
+}) task.wait()
+
+autoFarmTab:Toggle({
+    Title = "Auto Plant Seed", Default = false, Icon = "tree-pine", Desc = "Before enabling, please go to your plot, as we save your position and it stacks.",
+    Callback = function(enabled)
+        AutoPlantSeed = enabled
+
+        if enabled then _G.notify("Auto Plant Seed Enabled", 3, "check") if not autoPlantThread then autoPlantThread = task.spawn(function() autoplantSeed() autoPlantThread = nil end) end else
+            _G.notify("Auto Plant Seed Disabled", 3, "x")
+        end
+    end
+}) task.wait()
+
+autoFarmTab:Section({ Title = "-- Auto collect specific mutation. --", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+local enabledMutations = {}
+local collectMutationThread = nil
+local isCollectingSpecial = false
+
+
+local function shouldCollect()
+    for _, enabled in pairs(enabledMutations) do
+        if enabled then
+            return true
+        end
+        -- Remove task.wait() from here - it's unnecessary and slows down the check
+    end
+    return false
+end
+
+local function collectspecial()
+    if not shouldCollect() then return end
+
+    print("Collecting mutations:", shouldCollect())
+
+    local fruitsToCollect = {}
+    local success, Plants_Physical = pcall(function()
+        local _, _, plants, _ = GetPlayerFarm(localPlayer.Name)
+        return plants
+    end)
+    
+    if not success or not Plants_Physical then
+        print("Failed to get player farm")
+        return
+    end
+
+    for _, treeModel in ipairs(Plants_Physical:GetChildren()) do
+        if treeModel:IsA("Model") then
+            local fruitsFolder = treeModel:FindFirstChild("Fruits") -- Changed from WaitForChild to avoid hanging
+
+            local added = false
+            if fruitsFolder then
+                for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                    if fruit:IsA("Model") and 
+                       _G.hasAnyMutation(fruit, enabledMutations) and 
+                       not fruit:GetAttribute("Favorited") and 
+                       not _G.hasAnyMutation(fruit, ignoreMutation) then
+                        table.insert(fruitsToCollect, fruit)
+                        added = true
+                        break
+                    end
+                end
+            end
+
+            -- Check tree itself if no fruits were added
+            if not added and 
+               _G.hasAnyMutation(treeModel, enabledMutations) and 
+               not treeModel:GetAttribute("Favorited") and 
+               not _G.hasAnyMutation(treeModel, ignoreMutation) then
+                table.insert(fruitsToCollect, treeModel)
+            end
+        end
+    end
+
+    -- Collect the items
+    for _, item in ipairs(fruitsToCollect) do
+        if not shouldCollect() or (checkEventStatus and checkEventStatus()) then 
+            break 
+        end
+
+        if not _G.hasAnyMutation(item, ignoreMutation) then
+            local success = pcall(function()
+                if ByteNetReliable and ByteNetReliable:IsA("RemoteEvent") then
+                    ByteNetReliable:FireServer(harvestBuffer, { item })
+                    if _G.notify then
+                        _G.notify("Collected " .. item.Name, 1, "check")
+                    end
+                end
+            end)
+        end
+        
+        if not success then
+            print("Failed to collect:", item.Name)
+        end
+        
+        task.wait(AutoFarmSpeedGlobal) -- Small delay between collections
+    end
+end
+
+local function updateAutoCollectThread()
+    if shouldCollect() and not isCollectingSpecial then
+        isCollectingSpecial = true
+        if _G.notify then
+            _G.notify("Auto Collecting Mutations started.", 2, "check")
+        end
+        
+        collectMutationThread = task.spawn(function()
+            local eventPausedNotified = false
+            
+            while shouldCollect() do
+                local currentEventStatus = checkEventStatus and checkEventStatus() or false
+                
+                -- Pause if an event is active
+                if currentEventStatus then
+                    if not eventPausedNotified then
+                        if _G.notify then
+                            _G.notify("Paused: A selected event is active. Waiting...", 3, "triangle-alert")
+                        end
+                        eventPausedNotified = true
+                    end
+                    
+                    -- Wait and keep checking event status
+                    while (checkEventStatus and checkEventStatus()) and shouldCollect() do
+                        task.wait(1)
+                    end
+                    
+                    if shouldCollect() then
+                        if _G.notify then
+                            _G.notify("Resuming mutation collection - event ended", 2, "check")
+                        end
+                        eventPausedNotified = false
+                    end
+                end
+
+                if not shouldCollect() then break end
+
+                collectspecial()
+                task.wait(0.5)
+            end
+
+            isCollectingSpecial = false
+            collectMutationThread = nil
+            if _G.notify then
+                _G.notify("Mutation auto collection stopped.", 2, "x")
+            end
+        end)
+        
+    elseif not shouldCollect() and isCollectingSpecial then
+        if _G.notify then
+            _G.notify("All mutation toggles disabled. Auto collection halted.", 3, "x")
+        end
+        isCollectingSpecial = false
+        if collectMutationThread then
+            collectMutationThread = nil
+        end
+    end
+end
+
+-- Toggle creation (assuming autoFarmTab and _G.sortedMutations exist)
+if _G.sortedMutations and autoFarmTab then
+    for _, name in ipairs(_G.sortedMutations) do 
+        local toggle = autoFarmTab:Toggle({ 
+            Title = "Collect " .. name, 
+            Default = false, 
+            Callback = function(Value) 
+                enabledMutations[name] = Value 
+                task.spawn(function()
+                    if checkEventStatus then checkEventStatus() end
+                    updateAutoCollectThread() 
+                end)
+            end 
+        })
+        
+        if _G.myConfig then
+            _G.myConfig:Register("AutoCollect" .. name, toggle)
+        end
+        task.wait()
+    end
+end
+
+_G.notify("Using OP executor, all features should work.", 3, "check")
+local seedShopWanted = {}
+local gearShopWanted = {}
+local wantedEggs = {}
+local wantedItems = {}
+local wantedCrates = {}
+
+local wantedEventItems = {}
+local function createToggle(tab, itemTable, itemName, rarity, add, identifier)
+    local displayName = string.format("%s (%s)", itemName, rarity or "???")
+    
+    local toggle = tab:Toggle({
+        Title = displayName,
+        Icon = "shopping-cart",
+        Default = false,
+        Callback = function(val)
+            itemTable[add:lower()] = val
+        end
+    })
+    
+    _G.myConfig:Register( "AutoShop"..displayName,          toggle      )
+    toggle:Set(GetConfigValue(identifier, false))
+
+end
+
+
+-- Populate toggle sections for only visible (purchasable) items
+local function getSortedKeys(tbl)
+    local keys = {}
+    for k in pairs(tbl) do
+        table.insert(keys, k)
+    end
+    table.sort(keys)
+    return keys
+end
+
+--Old:ShopTab
+local seedShopTab  = _G.Window:Tab({ Title = "Seed Shop",     Icon = "store" }) task.wait() 
+local gearShopTab  = _G.Window:Tab({ Title = "Gear Shop",     Icon = "store" }) task.wait()
+local eggShopTab   = _G.Window:Tab({ Title = "Egg Shop",      Icon = "store" }) task.wait()
+local eventShopTab = _G.Window:Tab({ Title = "Event Shop",    Icon = "store" }) task.wait()
+local cosmeticShop = _G.Window:Tab({ Title = "Cosmetic Shop", Icon = "store" }) task.wait()
+
+cosmeticShop:Section({ Title = "Crates", TextXAlignment = "Left", TextSize = 14 })
+_G.requiredCratesData = _G.getModule(_G.dataFolder, "CosmeticCrateShopData")
+for _, name in ipairs(getSortedKeys(_G.requiredCratesData)) do
+    local data = _G.requiredCratesData[name]
+    createToggle(cosmeticShop, wantedCrates, data.CrateName, data.CrateRarity, name, "AutoBuyCratesCosmetic")
+    task.wait() 
+end
+
+cosmeticShop:Section({ Title = "Items", TextXAlignment = "Left", TextSize = 14 })
+_G.requiredItemData = _G.getModule(_G.dataFolder, "CosmeticItemShopData")
+for _, name in ipairs(getSortedKeys(_G.requiredItemData)) do
+    local data = _G.requiredItemData[name]
+    createToggle(cosmeticShop, wantedItems, data.CosmeticName, "N", name, "AutoBuyItemCosmetic")
+    task.wait() 
+end
+
+seedShopTab:Section({ Title = "Seeds shop\nAuto-buy toggled when in stock.", TextXAlignment = "Left", TextSize = 14 })
+_G.requiredSeedData = _G.getModule(_G.dataFolder, "SeedData")
+for _, name in ipairs(getSortedKeys(_G.requiredSeedData)) do
+    local data = _G.requiredSeedData[name]
+    if data.DisplayInShop then
+        createToggle(seedShopTab, seedShopWanted, data.SeedName, data.SeedRarity, name, "AutoBuyAllSeed")
+        task.wait() 
+    end
+end
+
+gearShopTab:Section({ Title = "Gear Shop\nAuto-buy toggled when in stock.", TextXAlignment = "Left", TextSize = 14 })
+_G.requiredGearData = _G.getModule(_G.dataFolder, "GearData")
+for _, name in ipairs(getSortedKeys(_G.requiredGearData)) do
+    local data = _G.requiredGearData[name]
+    if data.DisplayInShop then
+        createToggle(gearShopTab, gearShopWanted, data.GearName, data.GearRarity, name, "AutoBuyAllGears")
+        task.wait() 
+    end
+end
+
+eggShopTab:Section({ Title = "Egg Shop\nAuto-buy toggled when in stock.", TextXAlignment = "Left", TextSize = 14 })
+_G.requiredPetEggData = _G.getModule(_G.dataFolder, "PetEggData")
+for _, name in ipairs(getSortedKeys(_G.requiredPetEggData)) do
+    local data = _G.requiredPetEggData[name]
+    if data.EggName then
+        createToggle(eggShopTab, wantedEggs, data.EggName, data.EggRarity, name, "AutoBuyAllEggs")
+        task.wait() 
+    end
+end
+
+eventShopTab:Section({ Title = "Event Shop\nAuto-buy toggled when in stock.", TextXAlignment = "Left", TextSize = 14 })
+_G.requiredEventShopData = _G.getModule(_G.dataFolder, "HoneyEventShopData")
+for _, name in ipairs(getSortedKeys(_G.requiredEventShopData)) do
+    local data = _G.requiredEventShopData[name]
+    if data.DisplayInShop then
+        createToggle(eventShopTab, wantedEventItems, data.SeedName, data.SeedRarity, name, "AutoBuyAllEventItemsBee")
+        task.wait() 
+    end
+end
+
+-- Auto-buy loop
+task.defer(function()
+    while task.wait(0.5) do
+
+        local data, sheckles, honey = getPlayerData()
+
+        for CrateNames, info in pairs(getStockchild("CosmeticStock", "CrateStocks")) do
+            if wantedCrates[CrateNames:lower()] and info.Stock > 0 and _G.requiredCratesData[CrateNames].Price <= sheckles then
+                pcall(function()
+                    _G.Remotes.buyCratesRemote:FireServer(CrateNames)
+                    _G.notify("Bought seed: " .. CrateNames, 1, "shopping-cart")
+                    task.wait() 
+                end)
+            end
+        end
+
+        for ItemName, info in pairs(getStockchild("CosmeticStock", "ItemStocks")) do
+            if wantedItems[ItemName:lower()] and info.Stock > 0 and _G.requiredItemData[ItemName].Price <= sheckles then
+                pcall(function()
+                    _G.Remotes.buyItemRemote:FireServer(ItemName)
+                    _G.notify("Bought seed: " .. ItemName, 1, "shopping-cart")
+                    task.wait() 
+                end)
+                print('found')
+            end
+        end
+
+        for seedName, info in pairs(getStock("SeedStock")) do
+            if seedShopWanted[seedName:lower()] and info.Stock > 0 and _G.requiredSeedData[seedName].Price <= sheckles then
+                pcall(function()
+                    _G.Remotes.buySeedStockRemote:FireServer(seedName)
+                    _G.notify("Bought seed: " .. seedName, 1, "shopping-cart")
+                    task.wait() 
+                end)
+            end
+        end
+
+        for gearName, info in pairs(getStock("GearStock")) do
+            if gearShopWanted[gearName:lower()] and info.Stock > 0 and _G.requiredGearData[gearName].Price <= sheckles then
+                pcall(function()
+                    _G.Remotes.buyGearStockRemote:FireServer(gearName)
+                    _G.notify("Bought gear: " .. gearName, 1, "shopping-cart")
+                    task.wait() 
+                end)
+            end
+        end
+
+        for eggNum, info in pairs(getStock("PetEggStock")) do
+            local eggName = info.EggName
+            if wantedEggs[eggName:lower()] and info.Stock > 0 and _G.requiredPetEggData[eggName].Price <= sheckles then
+                pcall(function()
+                    _G.Remotes.buyPetEggRemote:FireServer(eggNum)
+                    _G.notify("Bought egg: " .. eggName, 1, "shopping-cart")
+                    task.wait() 
+                end)
+            end
+        end
+
+        for itemName, info in pairs(getStock("EventShopStock")) do
+            if wantedEventItems[itemName:lower()] and info.Stock > 0 and _G.requiredEventShopData[itemName].Price <= honey then
+                pcall(function()
+                    _G.Remotes.buyEventShopStockRemote:FireServer(itemName)
+                    _G.notify("Bought event item: " .. itemName, 1, "shopping-cart")
+                    task.wait() 
+                end)
+            end
+        end
+    end
+end)
+
+local autosellTab = _G.Window:Tab({ Title = "Automated Sell", Icon = "settings-2" }) task.wait() 
+
+local toggle = autosellTab:Toggle({
+    Title = "Auto-pass pollinated.",
+    Desc = "Except favorited fruits in your inventory.",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            _G.notify("Auto Pass Pollinated Enabled", 3, "check")
+            local running = true
+
+            addConnection("autopasspollinatedconnection", {
+                Disconnect = function()
+                    running = false
+                end
+            })
+
+            task.spawn(function()
+                local player = _G.getService("Players").LocalPlayer
+
+                local onett = workspace.HoneyCombpressor.Onett
+                local jar = workspace.HoneyCombpressor.Spout.Jar
+
+
+                if not onett or not jar then
+                    warn("AutoPassPollinated: Required NPC or Jar not found.")
+                    return
+                end
+
+                local function getToolWeight(toolName)
+                    local weight = toolName:match("%[([%d%.]+)kg%]")
+                    return weight and tonumber(weight) or 0
+                end
+
+                local function categorizeTools()
+                    local heavyTools = {}
+                    local lightTools = {}
+
+                    for _, item in ipairs(localPlayerBag:GetChildren()) do
+                        if item:IsA("Tool") and item.Name:find("Pollinated") and not item:GetAttribute("d") then
+                            local weight = getToolWeight(item.Name)
+                            if weight >= 10 then
+                                table.insert(heavyTools, item)
+                            elseif weight > 0 and weight <= 9 then
+                                table.insert(lightTools, item)
+                            end
+                        end
+                    end
+
+                    return heavyTools, lightTools
+                end
+
+                while running do
+                    pcall(function()
+
+                        local beePrompt = onett:FindFirstChild("HoneyCombpressorPrompt")
+                        if beePrompt then
+                            unequip_tool()
+                            local heavyTools, lightTools = categorizeTools()
+                            local equippedCount = 0
+                            local maxEquip = 3
+
+                            for _, tool in ipairs(heavyTools) do
+                                if beePrompt then 
+                                    if equippedCount >= maxEquip then break end
+                                    tool.Parent = character
+                                    equippedCount = equippedCount + 1
+                                end
+
+                                if equippedCount > 0 then
+                                    if beePrompt:IsA("ProximityPrompt") then
+                                        fireproximityprompt(beePrompt)
+                                    end
+                                    task.wait(0.5)
+                                    unequip_tool()
+                                    equippedCount = 0
+                                end
+                            end
+
+                            for _, tool in ipairs(lightTools) do
+                                if beePrompt then
+                                    if equippedCount >= maxEquip then break end
+                                    tool.Parent = character
+                                    equippedCount = equippedCount + 1
+                                    task.wait(0.1)
+                                end
+                            end
+
+                            if equippedCount > 0 and beePrompt:IsA("ProximityPrompt") then
+                                fireproximityprompt(beePrompt)
+                            end
+                        end
+
+                        local ui = player:FindFirstChild("PlayerGui")
+                        local frame = ui and ui:FindFirstChild("Honey_UI")
+                        frame = frame and frame:FindFirstChild("Frame")
+                        if frame and not frame.Visible then
+                            frame.Visible = true
+                        end
+
+                        local jarPrompt = jar and jar:FindFirstChild("HoneyCombpressorPrompt")
+                        if jarPrompt and jarPrompt:IsA("ProximityPrompt") then
+                            unequip_tool()
+                            fireproximityprompt(jarPrompt)
+                        end
+                    end)
+
+                    task.wait(0.3)
+                end
+            end)
+        else
+            unequip_tool()
+            cleanupConnections("autopasspollinatedconnection")
+            _G.notify("Auto Pass Pollinated Disabled", 3, "check")
+        end
+    end
+}) task.wait() 
+
+local currentDelayValue = 0
+
+local summertimepass = autosellTab:Slider({
+    Title = "Summer Time Pass Speed",
+    Step = 0.1,
+    Value = {
+        Min = 0,
+        Max = 120,
+        Default = 0,
+    },
+    Callback = function(value)
+        currentDelayValue = value
+        print(currentDelayValue)
+    end
+})
+summertimepass:Set(GetConfigValue("Summertimespeed", 0.1))
+
+local autopassConnection
+local toggle = autosellTab:Toggle({
+    Title = "Auto-pass Summer Fruit (Simple)",
+    Desc = "Equips 5 summer fruits and fires event continuously",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            _G.notify("Auto Pass Enabled", 3, "check")
+
+            local availableFruits = {
+                "cauliflower", "watermelon", "banana", "pineapple", "kiwi",
+                "avocado", "loquat", "green apple", "prickly pear", "sugar apple",
+                "bell pepper", "feijoa", "wild carrot", "rosy delight", "elephant ears",
+                "parasol flower", "pear", "cantaloupe", "strawberry", "carrot",
+                "blueberry", "tomato"
+            }
+
+            local function processAutoPass()
+                if workspace:GetAttribute("SummerHarvest") == true then
+                    addConnection("summer", _G.runService.Heartbeat:Connect(function()
+                        pcall(function()
+                            local backpack = localPlayer:FindFirstChild("Backpack")
+                            local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+                            if not backpack or not character then return end
+
+                            -- Equip up to 5 valid fruits
+                            local equippedCount = 0
+                            for _, item in ipairs(backpack:GetChildren()) do
+                                if equippedCount >= 5 then break end
+                                if item:IsA("Tool") then
+                                    local isFavorited = item:GetAttribute("d")
+                                    local isSeed = item:GetAttribute("Seed")
+                                    local isPet  = item:GetAttribute("b")
+                                    local itemNameLower = item.Name:lower()
+
+                                    for _, fruitName in ipairs(availableFruits) do
+                                        if itemNameLower:find(fruitName) then
+                                            if not isFavorited and not isSeed and isPet ~= "l" then
+                                                item.Parent = character
+                                                equippedCount += 1
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+
+                            -- Check how many valid fruits are held
+                            local heldValidFruits = 0
+                            for _, tool in ipairs(character:GetChildren()) do
+                                if tool:IsA("Tool") then
+                                    local itemNameLower = tool.Name:lower()
+                                    for _, fruitName in ipairs(availableFruits) do
+                                        if itemNameLower:find(fruitName) then
+                                            heldValidFruits += 1
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+
+                            -- Fire event if holding any valid fruits
+                            if heldValidFruits > 0 then
+                                pcall(function()
+                                    fireproximityprompt(workspace.Interaction.UpdateItems.SummerHarvestEvent.Cart.PromptPart.SummerHarvestProxPrompt)
+                                end)
+                                pcall(function()
+                                    _G.replicatedStorage:WaitForChild("GameEvents"):WaitForChild("SummerHarvestRemoteEvent"):FireServer("SubmitHeldPlant")
+                                end)
+                            end
+
+                            task.wait(currentDelayValue > 0 and currentDelayValue or 0.2)
+                        end)
+                    end))
+                end
+            end
+
+            autopassConnection = workspace:GetAttributeChangedSignal("SummerHarvest"):Connect(processAutoPass)
+            processAutoPass()
+        else
+            if autopassConnection then
+                autopassConnection:Disconnect()
+                autopassConnection = nil
+            end
+            cleanupConnections("summer")
+            _G.notify("Auto Pass Disabled", 3, "info")
+        end
+    end
+})
+
+
+local AutoSellConnection = nil
+local sellCooldown = false
+local sellOption = "Off"
+local autoSellRunning = false  -- Add running flag
+
+local function performSell()
+    if not character or not getHumanoidRootPart() then return false end
+    local backpack = localPlayer:FindFirstChild("Backpack")
+    local hasItemToSell = false
+    
+    for _, item in ipairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            local itemNameLower = string.lower(item.Name)
+            if not itemNameLower:find("seed") and itemNameLower:find("kg") then
+                local isPet = item:GetAttribute("ItemType") == "Pet"
+                local isFavorite = item:GetAttribute("d") == true
+                if not isPet and not isFavorite then
+                    hasItemToSell = true
+                    break
+                end
+            end
+        end
+    end
+    
+    if not hasItemToSell then 
+        _G.notify("No item to sell", 3, "check") 
+        return false 
+    end
+    
+    local sellArea = _G.safeGet(workspace, "Tutorial_Points", "Tutorial_Point_2")
+    if not sellArea then 
+        _G.notify("Script Need tweaks", 3, "check") 
+        return false 
+    end
+    
+    sellArea = sellArea.CFrame
+    local humanoidRootPart = getHumanoidRootPart()
+    
+    if humanoidRootPart then 
+        local previouslocation = humanoidRootPart.CFrame 
+        humanoidRootPart.CFrame = sellArea
+        task.wait(0.2)
+        pcall(function() 
+            _G.gameEvents:WaitForChild("Sell_Inventory"):FireServer() 
+        end)
+        task.wait(0.5)
+        humanoidRootPart.CFrame = previouslocation
+        return true
+    end
+    
+    return false
+end
+
+local bagFullHandled = false
+
+local function setupAutoSellConnection(sellOption)
+    cleanupConnections("autosellconnection")
+    autoSellRunning = false  -- Stop any existing loops
+    bagFullHandled = false
+    
+    if sellOption == "Off" then return end
+    
+    autoSellRunning = true  -- Start the new loop
+    addConnection("autosellconnection", task.spawn(function()
+        while autoSellRunning do  -- Check the running flag
+            task.wait(0.1)
+            
+            -- Double check if still running and not on cooldown
+            if not autoSellRunning then break end
+            if not sellCooldown then
+                if sellOption == "Sell When Full" then
+                    if #GetCrops() >= 200 and not bagFullHandled then
+                        sellCooldown = true
+                        bagFullHandled = true
+                        if performSell() then
+                            _G.notify("Bag was full - Items sold", 3, "check")
+                        end
+                        task.wait(1)
+                        sellCooldown = false
+                        -- Delay re-triggering for 3 seconds
+                        task.delay(3, function()
+                            bagFullHandled = false
+                        end)
+                    end
+                elseif sellOption == "Sell Every 30 Seconds" then
+                    sellCooldown = true
+                    if performSell() then
+                        _G.notify("30-second interval - Items sold", 3, "check")
+                    end
+                    task.wait(30)
+                    sellCooldown = false
+                end
+            end
+        end
+    end))
+end
+
+local AutoSellDropdown = autosellTab:Dropdown({
+    Title = "Auto-sell.",
+    Values = { "Off", "Sell When Full", "Sell Every 30 Seconds" },
+    Value = "Off",
+    Callback = function(Options)
+        local newOption = Options
+        if newOption ~= sellOption then
+            sellOption = newOption
+            if newOption == "Off" then 
+                _G.notify("Auto Sell Disabled", 3, "check") 
+                autoSellRunning = false  -- Stop the loop immediately
+                cleanupConnections("autosellconnection") 
+            else 
+                _G.notify("Auto Sell Enabled: " .. newOption, 3, "check") 
+                setupAutoSellConnection(sellOption) 
+            end
+        end
+    end
+})
+AutoSellDropdown:Select(GetConfigValue("AutoSellValue", "Off"))
+task.wait()
+
+autosellTab:Button({ Title = "Sell fruit now.",
+    Callback = function()
+        local result = performSell()
+        if result then _G.notify("Sold items", 3, "check") end
+    end
+}) task.wait() 
+
+
+autosellTab:Button({
+    Title = "Sell holding item now.",
+    Callback = function()
+        if not character or not getHumanoidRootPart() then _G.notify("No character or humanoid root part found", 3, "check") return end
+
+        local sellArea = _G.safeGet(workspace, "Tutorial_Points", "Tutorial_Point_2")
+        if not sellArea then _G.notify("Script Need tweaks", 3, "check") return false end
+        sellArea = sellArea.CFrame
+        local humanoidRootPart = getHumanoidRootPart()
+        if humanoidRootPart then
+            local previouslocation = humanoidRootPart.CFrame
+            humanoidRootPart.CFrame = sellArea
+            task.wait(0.2)
+            pcall(function() _G.gameEvents:WaitForChild("Sell_Item"):FireServer() end)
+            task.wait(0.5)
+            humanoidRootPart.CFrame = previouslocation
+        end
+    end
+}) task.wait() 
+
+local calvalue = autosellTab:Section({ Title = "Check value (holding item: pet/fruit).", TextXAlignment = "Left", TextSize = 14,}) task.wait() 
+
+autosellTab:Button({
+    Title = "Check value.",
+    Desc = "May not work if your notifications are off.",
+    Callback = function()
+        if not character then _G.notify("Character not found.", 3, "x") return end
+
+        local item
+        for _, child in ipairs(character:GetChildren()) do if child:IsA("Tool") then item = child break end end
+
+        if not item then _G.notify("No tool is equipped.", 3, "x") return end
+
+        local itemName = string.lower(item.Name or "")
+        if itemName:find("seed") or not itemName:find("kg") then _G.notify("Hold a valid Pet or Fruit to check value.", 3, "x") return end
+
+        local itemType = item:GetAttribute("ItemType") or item:GetAttribute("b")
+        if not itemType then _G.notify("Item type missing. Can't check value.", 3, "x") return end
+
+        local success, value
+        _G.calculatePetValue = _G.getModule(_G.modules, "CalculatePetValue")
+        if itemType == "Pet" then success, value = pcall(_G.calculatePetValue, item)
+        _G.calculatePlantValue = _G.getModule(_G.modules, "CalculatePlantValue")
+        elseif itemType == "j" then success, value = pcall(_G.calculatePlantValue, item)
+        else _G.notify("Unsupported item type: " .. tostring(itemType), 3, "x") return end
+
+        if success and value then _G.notify("Amount: " .. (formatNumber(value, true) or "N/A"), 3, "check") else _G.notify("Failed to calculate item value.", 3, "x") end
+    end
+}) task.wait() 
+
+autosellTab:Section({ Title = "Sell Pet (Beta) might not work (Disabled)", TextXAlignment = "Left", Locked = true, TextSize = 14 }) task.wait() 
+
+local PlantsTab = _G.Window:Tab({ Title = "Plant Related", Icon = "drill", Locked = false }) task.wait() 
+
+local PlantsTabrunning = false
+local trowelThread = nil
+local SelectedPlantNames = {}
+
+local function GetDistance(a, b, ignore)
+    ignore = ignore or {}
+    local function adjust(vec)
+        return Vector3.new(
+            table.find(ignore, "X") and 0 or vec.X,
+            table.find(ignore, "Y") and 0 or vec.Y,
+            table.find(ignore, "Z") and 0 or vec.Z
+        )
+    end
+    return (adjust(a) - adjust(b)).Magnitude
+end
+
+local function trowelPlants()
+    local TrowelRemote = _G.gameEvents:WaitForChild("TrowelRemote", 60)
+    _, _, Plants_Physical, _ = GetPlayerFarm(localPlayer.Name)
+
+    task.wait(0.1)
+
+    local tool = _G.GetTool(character)
+    if not tool or not tool.Name:find("Trowel") then return end
+
+    local playerPos = character:GetPivot().Position
+    local newPos = Vector3.new(playerPos.X, 0, playerPos.Z)
+
+    local plantsToMove = {}
+    for _, plant in ipairs(Plants_Physical:GetChildren()) do
+        if plant:IsA("Model") then
+            local shouldProcess = true
+            if #SelectedPlantNames > 0 then
+                shouldProcess = table.find(SelectedPlantNames, plant.Name) ~= nil
+            end
+            if shouldProcess then
+                local plantPos = plant:GetPivot().Position
+                if GetDistance(plantPos, newPos, { "Y" }) > 1 then
+                    table.insert(plantsToMove, plant)
+                end
+            end
+        end
+    end
+
+    for _, plant in ipairs(plantsToMove) do
+        if not PlantsTabrunning then break end
+        local success1, success2
+        pcall(function() success1 = TrowelRemote:InvokeServer("Pickup", tool, plant) end)
+        pcall(function() success2 = TrowelRemote:InvokeServer("Place", tool, plant, CFrame.new(newPos)) end)
+        if success1 and success2 then
+            plant:PivotTo(CFrame.new(newPos))
+        end
+        task.wait(0.01)
+    end
+
+    PlantsTabrunning = false
+    _G.notify("Trowel Finished", 3, "check")
+    trowelThread = nil
+end
+
+local trowelToggle = PlantsTab:Toggle({
+    Title = "Trowel Plants to Player (All or Selected)",
+    Default = false,
+    Callback = function(state)
+        PlantsTabrunning = state
+        if state then
+            _G.notify("Trowel Plants Enabled", 3, "check")
+            if not trowelThread or coroutine.status(trowelThread) == "dead" then
+                trowelThread = task.spawn(trowelPlants)
+            end
+        else
+            _G.notify("Trowel Plants Disabled", 3, "x")
+        end
+    end
+}) task.wait()
+
+PlantsTab:Section({ Title = "Move Plant By Name", TextXAlignment = "Left", TextSize = 14 }) task.wait() 
+
+local PlantTrees = PlantsTab:Dropdown({ Title = "Select Plant", Values = {"Refresh First"}, Value = {}, Multi = true, AllowNone = true, Callback = function(selected) SelectedPlantNames = selected _G.notify("Selected plants updated", 3, "check") end }) task.wait() 
+
+PlantsTab:Button({
+    Title = "Refresh",
+    Callback = function()
+        refreshFruitsList(PlantTrees, localPlayer.Name)
+    end
+}) task.wait() 
+
+PlantsTab:Section({ Title = "Favourite Mutated Fruits (Tool Required)", TextXAlignment = "Left", TextSize = 14 }) task.wait() 
+
+local favMutationToggles = {}
+local isFavoritebaseNow = false
+local individualFavThread = nil
+
+local function individualFav()
+    while isFavoritebaseNow do
+        local equippedTool = character:FindFirstChildOfClass("Tool")
+        if not equippedTool or not equippedTool.Name:find('Favorite Tool') then break end
+        _, _, Plants_Physical, _ = GetPlayerFarm(localPlayer.Name)
+        for _, plant in ipairs(Plants_Physical:GetChildren()) do
+            if not isFavoritebaseNow then return end
+
+            local fruitsFolder = plant:FindFirstChild("Fruits")
+            if fruitsFolder then
+                for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                    if not isFavoritebaseNow then return end
+                    if _G.hasAnyMutation(fruit, favMutationToggles) and not fruit:GetAttribute("Favorited") then
+                        pcall(function() local success = _G.FavoriteToolRemote:InvokeServer(equippedTool, fruit, true) if not success then warn("Failed to favorite fruit:", fruit:GetFullName()) end end)
+                        task.wait()
+                    end
+                end
+            else
+                if _G.hasAnyMutation(plant, favMutationToggles) and not plant:GetAttribute("Favorited") then
+                    pcall(function() local success = _G.FavoriteToolRemote:InvokeServer(equippedTool, plant, true) if not success then warn("Failed to favorite fruit:", plant:GetFullName()) end end)
+                    task.wait()
+                end
+            end
+        end
+
+        task.wait(2)
+    end
+    individualFavThread = false
+end
+
+for _, mutation in ipairs(_G.sortedMutations) do PlantsTab:Toggle({ Title = "Favourite all " .. mutation, Default = false, Callback = function(state) favMutationToggles[mutation] = state if state then _G.notify("okay.. " .. mutation, 3, "check") else _G.notify("stopped.. " .. mutation, 3, "x") end end }) task.wait() end
+
+PlantsTab:Toggle({
+    Title = "Confirm Auto Favourite (Mutation)",
+    Default = false,
+    Callback = function(state)
+        isFavoritebaseNow = state
+
+        if state then _G.notify("Auto Favourite (Mutation) Enabled", 3, "check") if not individualFavThread or coroutine.status(individualFavThread) == "dead" then individualFavThread = task.spawn(individualFav) end else _G.notify("Auto Favourite (Mutation) Disabled", 3, "x") end
+    end
+}) task.wait() 
+
+PlantsTab:Section({ Title = "Destroy plants (Shovel)", TextXAlignment = "Left", TextSize = 14 }) task.wait() 
+
+local fruitSelection = PlantsTab:Dropdown({ Title = "Select Plant to Destroy", Values = { "Refresh First" }, Value = {}, Multi = true, AllowNone = true, Callback = function(selected) end }) task.wait() 
+
+local ShovelPlants = false
+local shovelThread = nil
+
+local function shovel()
+    while ShovelPlants do
+        local equippedTool = character and character:FindFirstChildOfClass("Tool")
+
+        if equippedTool and equippedTool.Name:find("Shovel") then
+            _, _, Plants_Physical, _ = GetPlayerFarm(localPlayer.Name)
+            for _, treeModel in ipairs(Plants_Physical:GetChildren()) do
+                if not ShovelPlants then break end
+
+                if treeModel:IsA("Model") and fruitSelection.Value then
+                    for _, selectedPlant in ipairs(fruitSelection.Value) do
+                        if treeModel.Name:lower() == selectedPlant:lower() then
+                            -- Find just one BasePart to destroy
+                            local targetPart = nil
+                            for _, desc in ipairs(treeModel:GetDescendants()) do
+                                if desc:IsA("BasePart") then
+                                    targetPart = desc
+                                    break
+                                end
+                            end
+
+                            if targetPart then
+                                local success, err = pcall(function()
+                                    _G.gameEvents.Remove_Item:FireServer(targetPart)
+                                end)
+
+                                if success then
+                                    _G.notify("Destroyed: " .. targetPart.Name, 1, "check")
+                                else
+                                    warn("Failed to destroy: " .. targetPart.Name, err)
+                                    _G.notify("Failed: " .. targetPart.Name, 1, "x")
+                                end
+
+                                task.wait(0.1)
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            _G.notify("No shovel equipped! Please equip a shovel to destroy plants.", 3, "triangle-alert")
+            task.wait(2)
+        end
+
+        task.wait(1)
+    end
+end
+
+PlantsTab:Button({
+    Title = "Refresh Plants",
+    Callback = function()
+        _G.notify("Refreshing Plants to Destroy...", 3, "check")
+        if refreshFruitsList then
+            refreshFruitsList(fruitSelection, localPlayer.Name)
+        else
+            print("refreshFruitsList function not found")
+        end
+    end
+}) task.wait() 
+
+PlantsTab:Toggle({
+    Title = "Destroy Selected Plants",
+    Default = false,
+    Callback = function(state)
+        ShovelPlants = state
+        
+        if state then
+            if not shovelThread then
+                if _G.notify then
+                    _G.notify("Destroying Plants", 3, "check")
+                end
+                shovelThread = task.spawn(shovel)
+            end
+        else
+            ShovelPlants = false
+            if _G.notify then
+                _G.notify("Destroying Disabled", 3, "x")
+            end
+            
+            if shovelThread then
+                task.wait(0.1) 
+                if shovelThread then
+                    task.cancel(shovelThread)
+                    shovelThread = nil
+                end
+            end
+        end
+    end
+}) task.wait() 
+
+
+PlantsTab:Section({ Title = "Trowel (click fruit to get the plant )", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+PlantsTab:Toggle({
+    Title = "Activate Better Trowel Logic",
+    Default = false,
+    Locked = not dataService,
+    Callback = function(state)
+        local LocalPlayer = _G.players.LocalPlayer
+        local LocalCharacter = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local LocalScripts = LocalPlayer:FindFirstChildOfClass("PlayerScripts") or LocalPlayer:WaitForChild("PlayerScripts", 60)
+        local Camera = workspace.CurrentCamera
+        local Farms = workspace:WaitForChild("Farm", 60)
+        local Modules = _G.replicatedStorage:WaitForChild("Modules", 60)
+        local GameEvents = _G.replicatedStorage:WaitForChild("GameEvents", 60)
+        local TrowelRemote = GameEvents:WaitForChild("TrowelRemote", 60)
+        local NotificationModule = Modules:WaitForChild("Notification", 60)
+        local NotificationSystem = NotificationModule and require(NotificationModule)
+        
+        local Connections = {}
+        local PickedUpPlant = nil
+        local LocalFarm, LocalFarmPlants = nil, nil
+        
+        --// Utility Functions \\--
+        local function notify2(msg, color)
+            if NotificationSystem then
+                NotificationSystem:CreateNotification(msg, color)
+            else
+                print("[Trowel]", msg)
+            end
+        end
+
+        local function GetPlayerFarm(Player)
+            for _, Farm in pairs(Farms:GetChildren()) do
+                local Important = Farm:FindFirstChild("Important")
+                if Important then
+                    local Data = Important:FindFirstChild("Data")
+                    if Data then
+                        local Owner = Data:FindFirstChild("Owner")
+                        if Owner and Owner.Value == Player.Name then
+                            return Farm, Important:FindFirstChild("Plants_Physical")
+                        end
+                    end
+                end
+            end
+            return nil, nil
+        end
+
+        local function GetPlantFromCrop(Instance)
+            if not LocalFarmPlants then return end
+            if Instance.Parent == LocalFarmPlants then return Instance end
+            local Current = Instance.Parent
+            while Current and Current.Parent ~= LocalFarmPlants do
+                Current = Current.Parent
+            end
+            return Current
+        end
+        
+        local function HandleTrowelClick(Tool)
+            local MousePos = userInputService:GetMouseLocation()
+            local Ray = Camera:ViewportPointToRay(MousePos.X, MousePos.Y)
+            local Params = RaycastParams.new()
+            Params.FilterDescendantsInstances = {LocalCharacter}
+            Params.FilterType = Enum.RaycastFilterType.Exclude
+            local Hit = workspace:Raycast(Ray.Origin, Ray.Direction * 1000, Params)
+            
+            if not Hit or not Hit.Instance then return end
+            
+            if PickedUpPlant then
+                -- Try to place plant
+                if Hit.Instance.Name == "Can_Plant" and Hit.Instance:IsDescendantOf(LocalFarm) then
+                    local NewCFrame = CFrame.new(Hit.Position)
+                    pcall(function() TrowelRemote:InvokeServer("Place", Tool, PickedUpPlant, NewCFrame) end)
+                    PickedUpPlant:PivotTo(NewCFrame)
+                    
+                    local Highlight = PickedUpPlant:FindFirstChild("PlantHighlight")
+                    if Highlight then Highlight:Destroy() end
+                    
+                    for _, Part in pairs(PickedUpPlant:GetDescendants()) do
+                        if Part:IsA("BasePart") then
+                            Part.CanCollide = true
+                            Part.CanQuery = true
+                        end
+                    end
+                    
+                   notify2("Successfully Moved " .. PickedUpPlant.Name .. " Plant!", Color3.fromRGB(0, 255, 0))
+                    PickedUpPlant = nil
+                else
+                   notify2("Cannot Place Plant Here!", Color3.fromRGB(255, 0, 0))
+                end
+            else
+                -- Try to pick up plant
+                local Plant = GetPlantFromCrop(Hit.Instance)
+                if Plant then
+                    PickedUpPlant = Plant
+                    pcall(function() TrowelRemote:InvokeServer("Pickup", Tool, Plant) end)
+                   notify2("Picked Up " .. Plant.Name .. " Plant!", Color3.fromRGB(0, 255, 0))
+                    
+                    for _, Part in pairs(Plant:GetDescendants()) do
+                        if Part:IsA("BasePart") then
+                            Part.CanCollide = false
+                            Part.CanQuery = false
+                        end
+                    end
+                    
+                    local Highlight = Instance.new("Highlight")
+                    Highlight.Name = "PlantHighlight"
+                    Highlight.Parent = Plant
+                    Highlight.Adornee = Plant
+                    Highlight.FillTransparency = 1
+                    Highlight.FillColor = Color3.fromRGB(255, 255, 255)
+                    Highlight.OutlineTransparency = 0
+                    Highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+                end
+            end
+        end
+        
+        local function CancelPickup(Tool)
+            if not PickedUpPlant then return end
+            
+            pcall(function() TrowelRemote:InvokeServer("Cancel", Tool, PickedUpPlant) end)
+            
+            local Highlight = PickedUpPlant:FindFirstChild("PlantHighlight")
+            if Highlight then Highlight:Destroy() end
+            
+            for _, Part in pairs(PickedUpPlant:GetDescendants()) do
+                if Part:IsA("BasePart") then
+                    Part.CanCollide = true
+                    Part.CanQuery = true
+                end
+            end
+            
+           notify2("Canceled Moving " .. PickedUpPlant.Name .. " Plant!", Color3.fromRGB(255, 0, 0))
+            PickedUpPlant = nil
+        end
+        
+        local function CleanupAll()
+            for _, conn in pairs(Connections) do
+                if conn then conn:Disconnect() end
+            end
+            Connections = {}
+            
+            if PickedUpPlant then
+                CancelPickup(nil)
+            end
+            
+            local OriginalScript = LocalScripts:FindFirstChild("Trowel_Client")
+            if OriginalScript then
+                OriginalScript.Disabled = false
+            end
+        end
+        
+        if state then
+            -- ACTIVATE SYSTEM
+           notify2('Trowel System Activated!', Color3.fromRGB(255, 0, 0))
+            
+            -- Get player farm
+            LocalFarm, LocalFarmPlants = GetPlayerFarm(LocalPlayer)
+            
+            -- Setup trowel handling
+            local function SetupTrowel()
+                if not LocalCharacter then return end
+                
+                Connections["ToolAdded"] = LocalCharacter.ChildAdded:Connect(function(Tool)
+                    if Tool:IsA("Tool") and Tool.Name:find("Trowel") then
+                        local OriginalScript = LocalScripts:FindFirstChild("Trowel_Client")
+                        if OriginalScript then OriginalScript.Disabled = true end
+                        
+                        Connections["TrowelClick"] = Tool.Activated:Connect(function()
+                            HandleTrowelClick(Tool)
+                        end)
+                    end
+                end)
+                
+                Connections["ToolRemoved"] = LocalCharacter.ChildRemoved:Connect(function(Tool)
+                    if Tool:IsA("Tool") and Tool.Name:find("Trowel") then
+                        local OriginalScript = LocalScripts:FindFirstChild("Trowel_Client")
+                        if OriginalScript then OriginalScript.Disabled = false end
+                        
+                        if Connections["TrowelClick"] then
+                            Connections["TrowelClick"]:Disconnect()
+                            Connections["TrowelClick"] = nil
+                        end
+                        
+                        CancelPickup(Tool)
+                    end
+                end)
+            end
+            
+            -- Character respawn handling
+            Connections["CharacterAdded"] = LocalPlayer.CharacterAdded:Connect(function(Character)
+                LocalCharacter = Character
+                SetupTrowel()
+            end)
+            
+            Connections["CharacterRemoving"] = LocalPlayer.CharacterRemoving:Connect(function()
+                LocalCharacter = nil
+                if PickedUpPlant then CancelPickup(nil) end
+            end)
+            
+            -- Setup for current character
+            SetupTrowel()
+            
+        else
+            -- DEACTIVATE SYSTEM
+            _G.notify('Trowel System Deactivated!', 3, 'x')
+            CleanupAll()
+        end
+    end
+})
+
+
+local effectTab = _G.Window:Tab({ Title = "Effect Options", Icon = "eye", Locked = false }) task.wait() 
+
+_G.HideFrozen = effectTab:Toggle({
+    Title = "Hide Frozen Effect",
+    Default = false,
+    Icon = "eye-closed",
+    Callback = function(Value)
+        if Value then _G.hidePlantVisualEffects(true) _G.notify("Plant effects are now hidden", 3, "triangle-alert")
+        else _G.hidePlantVisualEffects(false) _G.notify("Plant effects are now visible", 3, "check") end
+    end
+}) task.wait() 
+_G.HideFrozen:Set(GetConfigValue("HideFrozenEffects", false))
+_G.myConfig:Register( "HideFrozenEffects", _G.HideFrozen)
+
+
+_G.DestroyVFX = effectTab:Button({
+    Title = "Destroy Effects",
+    Default = false,
+    Icon = "eye-off",
+    Callback = function(value)
+        for _, descendant in ipairs(_G.Farms:GetDescendants()) do
+            if descendant:IsA("ParticleEmitter") then
+                descendant:Destroy()
+            end
+        end
+        _G.notify("Plant effects removed.", 3, "check")
+    end
+})
+
+effectTab:Toggle({
+    Title = "Hide all Fruits (including effect) ",
+    Default = false,
+    Icon = "eye-off",
+    Callback = function(value)
+        if value then
+            for _, descendant in ipairs(_G.Farms:GetDescendants()) do
+                if descendant:IsA("Model") then
+                    local parent = descendant.Parent
+                    if parent and parent.Name == "Plants_Physical" then
+                        local fruitFolder = descendant:FindFirstChild("Fruits")
+                        
+                        if fruitFolder then
+                            for _, fruit in ipairs(fruitFolder:GetChildren()) do
+                                if fruit:IsA("Model") then
+                                    for _, part in ipairs(fruit:GetDescendants()) do
+                                        if part:IsA("Part") or part:IsA("MeshPart") then
+                                            if part.Transparency == 0 then 
+                                                part.Transparency = 100
+                                                part.CanCollide = false
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        else
+                            for _, part in ipairs(descendant:GetDescendants()) do
+                                if part:IsA("Part") or part:IsA("MeshPart") then
+                                    if part.Transparency == 0 then 
+                                        part.Transparency = 100
+                                        part.CanCollide = false
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            for _, descendant in ipairs(_G.Farms:GetDescendants()) do
+                if descendant:IsA("Model") then
+                    local parent = descendant.Parent
+                    if parent and parent.Name == "Plants_Physical" then
+                        local fruitFolder = descendant:FindFirstChild("Fruits")
+                        
+                        if fruitFolder then
+                            for _, fruit in ipairs(fruitFolder:GetChildren()) do
+                                if fruit:IsA("Model") then
+                                    for _, part in ipairs(fruit:GetDescendants()) do
+                                        if part:IsA("Part") or part:IsA("MeshPart") then
+                                            if part.Transparency == 100 then 
+                                                part.Transparency = 0
+                                                part.CanCollide = true
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        else
+                            for _, part in ipairs(descendant:GetDescendants()) do
+                                if part:IsA("Part") or part:IsA("MeshPart") then
+                                    if part.Transparency == 100 then 
+                                        part.Transparency = 0
+                                        part.CanCollide = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+})
+
+local PlotsTab = _G.Window:Tab({ Title = "Plots Information", Icon = "info", Locked = false })
+
+PlotsTab:Section({ Title = "Your Plot", TextXAlignment = "Left", TextSize = 14 })
+
+-- Utility Functions
+local espConnectionsFruits = {}
+
+local function makeString(target)
+    local existing = target:FindFirstChild("Item_String")
+    if existing and existing.Value == target.Name then
+        return -- Already has correct string value
+    end
+    
+    if existing then
+        existing:Destroy()
+    end
+    
+    local classValue = Instance.new("StringValue")
+    classValue.Name = "Item_String"
+    classValue.Value = target.Name
+    classValue.Parent = target
+end
+
+local function calculatePlantValueSafely(item)
+    makeString(item)
+    
+    if not _G.calculatePlantValue then
+        _G.calculatePlantValue = _G.getModule(_G.modules, "CalculatePlantValue")
+    end
+    
+    local success, result = pcall(_G.calculatePlantValue, item)
+    if success and result and typeof(result) == "number" and result > 0 then
+        return result
+    else
+        warn("Failed to calculate plant value for " .. item.Name .. ":", result)
+        return 0
+    end
+end
+
+local function processPlantItems(Plants_Physical, callback)
+    for _, plant in ipairs(Plants_Physical:GetChildren()) do
+        if plant:IsA("Model") then
+            local fruitsFolder = plant:FindFirstChild("Fruits")
+            if fruitsFolder then
+                for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                    local weight = fruit:FindFirstChild("Weight")
+                    if weight and typeof(weight.Value) == "number" then
+                        callback(fruit, "fruit")
+                    end
+                end
+            else
+                local weight = plant:FindFirstChild("Weight")
+                if weight and typeof(weight.Value) == "number" then
+                    callback(plant, "plant")
+                end
+            end
+        end
+    end
+end
+
+local function getMutations(item)
+    local mutationFoundinthis = {}
+    local attrs = item:GetAttributes()
+    local Variant = item:FindFirstChild("Variant").Value
+
+    if Variant ~= "Normal" then
+        table.insert(mutationFoundinthis, Variant)
+    end
+    
+    for attrName, attrValue in pairs(attrs) do
+        local attrLower = string.lower(attrName)
+        local isMutation = false
+
+
+        
+        if type(_G.sortedMutations) == "table" then
+            for mutation, enabled in pairs(_G.sortedMutations) do
+                if enabled and attrLower == string.lower(mutation) then
+                    isMutation = true
+                    break
+                end
+            end
+
+            
+            if not isMutation then
+                for _, mutation in ipairs(_G.sortedMutations) do
+                    if attrLower == string.lower(mutation) then
+                        isMutation = true
+                        break
+                    end
+                end
+            end
+        end
+        
+        if isMutation then
+            table.insert(mutationFoundinthis, attrName)
+        end
+    end
+    
+    return mutationFoundinthis
+end
+
+local function createFruitEsp(adornee)
+    task.spawn(function()
+        if adornee and adornee:IsA("Model") and not adornee.PrimaryPart then
+            adornee.PrimaryPart = adornee:FindFirstChildWhichIsA("BasePart")
+        end
+
+        if adornee and adornee.PrimaryPart then
+            local box = Instance.new("BoxHandleAdornment")
+            box.Name = "MutationESP"
+            box.Size = adornee:GetExtentsSize()
+            box.Adornee = adornee
+            box.AlwaysOnTop = true
+            box.ZIndex = 10
+            box.Color3 = Color3.new(1, 1, 1)
+            box.Transparency = 0.2
+            box.Parent = adornee
+
+            _G.notify("ESP enabled for: " .. adornee.Name, 2, "search")
+
+            -- Store connection for cleanup
+            local connectionId = tostring(adornee)
+            local connection = adornee.AncestryChanged:Connect(function(_, parent)
+                if not parent then
+                    if box and box.Parent then
+                        box:Destroy()
+                    end
+                    if espConnectionsFruits[connectionId] then
+                        espConnectionsFruits[connectionId]:Disconnect()
+                        espConnectionsFruits[connectionId] = nil
+                    end
+                    _G.notify("ESP removed (item gone).", 2, "info")
+                end
+            end)
+            
+            espConnectionsFruits[connectionId] = connection
+
+            -- Auto-remove ESP after 20 seconds
+            task.delay(20, function()
+                if box and box.Parent then
+                    box:Destroy()
+                    _G.notify("ESP auto-removed after 20 seconds.", 2, "clock")
+                end
+                if espConnectionsFruits[connectionId] then
+                    espConnectionsFruits[connectionId]:Disconnect()
+                    espConnectionsFruits[connectionId] = nil
+                end
+            end)
+        else
+            _G.notify("ESP failed: invalid target.", 2, "error")
+        end
+    end)
+end
+
+local function collectItemsBatch(items, batchSize)
+    batchSize = batchSize or 5
+    for i = 1, #items, batchSize do
+        local batch = {}
+        for j = i, math.min(i + batchSize - 1, #items) do
+            table.insert(batch, items[j])
+        end
+        
+        if ByteNetReliable and ByteNetReliable:IsA("RemoteEvent") then
+            ByteNetReliable:FireServer(harvestBuffer, batch)
+            _G.notify("Collected batch " .. math.ceil(i/batchSize) .. " (" .. #batch .. " items)", 2, "check")
+        end
+        task.wait(0.1)
+    end
+end
+
+
+-- Dialog Functions
+local function ShowDialog(mostExpensiveFruit, highestValue, Who)
+    local mutationFoundinthis = getMutations(mostExpensiveFruit)
+    
+    task.spawn(function()
+        local Dialog = _G.Window:Dialog({
+            Icon = "app-window",
+            Title = "Most Expensive Fruit" .. ((Who == "Me") and " in Your Plot" or (" in " .. Who .. "'s Plot")),
+            Content = mostExpensiveFruit.Name .. " (Value: " .. formatNumber(highestValue, true) .. ")\n" ..
+                     "Mutations: \n " .. (#mutationFoundinthis > 0 and table.concat(mutationFoundinthis, ",\n ") or "None") .. "\n" ..
+                     "Weight: " .. (mostExpensiveFruit:FindFirstChild("Weight") and mostExpensiveFruit.Weight.Value or "N/A"),
+            Buttons = {
+                {
+                    Title = "Collect",
+                    Callback = function()
+                        task.spawn(function()
+                            pcall(function()
+                                if ByteNetReliable and ByteNetReliable:IsA("RemoteEvent") then
+                                    ByteNetReliable:FireServer(harvestBuffer, { mostExpensiveFruit })
+                                    _G.notify("Collected " .. mostExpensiveFruit.Name .. " (Value: " .. formatNumber(highestValue, true) .. ")", 3, "check")
+                                end
+                            end)
+                        end)
+                    end,
+                },
+                {
+                    Title = "ESP",
+                    Callback = function()
+                        createFruitEsp(mostExpensiveFruit)
+                    end,
+                },
+                {
+                    Title = "Cancel",
+                    Callback = function()
+                    end,
+                },
+            },
+        })
+    end)
+end
+
+local function ShowInventoryValueDialog(totalValue, itemCounts, MostExpensiveItem)
+    task.spawn(function()
+        local content = "Total Inventory Value: " .. formatNumber(totalValue, true) .. "\n\n"
+
+        if itemCounts.fruits > 0 then
+            content = content .. "Fruits/Plants: " .. itemCounts.fruits .. " items\n"
+        end
+
+        if itemCounts.other > 0 then
+            content = content .. "Other Items: " .. itemCounts.other .. " items\n"
+        end
+
+        local Dialog = _G.Window:Dialog({
+            Icon = "package",
+            Title = "Inventory Value Summary",
+            Content = content,
+            Buttons = {
+                {
+                    Title = "Hold the Most Expensive Item",
+                    Callback = function()
+                        if character and MostExpensiveItem then
+                            local humanoid = character:FindFirstChildOfClass("Humanoid")
+                            if humanoid then
+                                humanoid:EquipTool(MostExpensiveItem)
+                                _G.notify("Equipped: " .. MostExpensiveItem.Name, 3, "check")
+                            else
+                                _G.notify("Humanoid not found!", 2, "warning")
+                            end
+                        else
+                            _G.notify("No item to equip!", 2, "warning")
+                        end
+                    end,
+                },
+                {
+                    Title = "Close",
+                    Callback = function()
+                        -- Just close the dialog
+                    end,
+                },
+            },
+        })
+    end)
+end
+
+local function ShowTotalValueDialog(totalValue, fruitCount, Who, collectall, allFruits)
+    task.spawn(function()
+        local buttons = {}
+
+        if collectall and allFruits and #allFruits > 0 then
+            table.insert(buttons, {
+                Title = "Collect All",
+                Callback = function()
+                    task.spawn(function()
+                        pcall(function()
+                            collectItemsBatch(allFruits)
+                            _G.notify("Finished collecting all items! Total Value: " .. formatNumber(totalValue, true), 3, "check")
+                        end)
+                    end)
+                end,
+            })
+        end
+
+        table.insert(buttons, {
+            Title = "Close",
+            Callback = function() end,
+        })
+
+        _G.Window:Dialog({
+            Icon = "hand-coins",
+            Title = "Total Plot Value" .. ((Who == localPlayer.Name) and " of Your Plot" or (" in " .. Who .. "'s Plot")),
+            Content = "Total Value: " .. formatNumber(totalValue, true) .. "\nTotal Items: " .. fruitCount,
+            Buttons = buttons
+        })
+    end)
+end
+
+-- Main Functions
+local function findMostExpensiveFruit(playerName)
+    _, _, Plants_Physical, _ = GetPlayerFarm(playerName)
+    if not Plants_Physical then return nil, 0 end
+
+    local mostExpensiveFruit = nil
+    local highestValue = 0
+
+    processPlantItems(Plants_Physical, function(item, itemType)
+        local plantValue = calculatePlantValueSafely(item)
+        
+        if plantValue > highestValue then
+            highestValue = plantValue
+            mostExpensiveFruit = item
+        end
+    end)
+
+    return mostExpensiveFruit, highestValue
+end
+
+local function calculateTotalPlotValue(playerName)
+    _, _, Plants_Physical, _ = GetPlayerFarm(playerName)
+    if not Plants_Physical then return 0, 0, {} end
+
+    local totalValue = 0
+    local fruitCount = 0
+    local allFruits = {}
+
+    processPlantItems(Plants_Physical, function(item, itemType)
+        local plantValue = calculatePlantValueSafely(item)
+        
+        if plantValue > 0 then
+            totalValue = totalValue + plantValue
+            fruitCount = fruitCount + 1
+            table.insert(allFruits, item)
+        end
+    end)
+
+    return totalValue, fruitCount, allFruits
+end
+
+local function calculateInventoryValue()
+    local backpack = localPlayer:FindFirstChild("Backpack")
+    if not backpack then
+        _G.notify("No backpack found!", 2, "warning")
+        return
+    end
+
+    local totalValue = 0
+    local itemCounts = { fruits = 0, other = 0 }
+    local MostExpensiveTool = nil
+    local highestValue = 0
+
+    for _, tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") and not string.find(tool.Name, "Seed") and not tool:GetAttribute("Seed") then
+            if tool:GetAttribute("b") == "j" and string.find(tool.Name, "kg") then
+                local plantValue = calculatePlantValueSafely(tool)
+
+                if plantValue > highestValue then
+                    highestValue = plantValue
+                    MostExpensiveTool = tool
+                end
+
+                totalValue = totalValue + plantValue
+                itemCounts.fruits = itemCounts.fruits + 1
+            else
+                itemCounts.other = itemCounts.other + 1
+            end
+        end
+    end
+
+    ShowInventoryValueDialog(totalValue, itemCounts, MostExpensiveTool)
+end
+
+-- UI Buttons
+PlotsTab:Button({
+    Title = "Show The Expensive Fruit You have in Your Plot",
+    Callback = function()
+        local mostExpensiveFruit, highestValue = findMostExpensiveFruit(localPlayer.Name)
+
+        if mostExpensiveFruit then
+            ShowDialog(mostExpensiveFruit, highestValue, "Me")
+        else
+            _G.notify("No fruits found!", 2, "warning")
+        end
+    end
+})
+
+
+PlotsTab:Button({
+    Title = "Show The Total Value You Have in Your Inventory",
+    Callback = function() calculateInventoryValue() end
+})
+
+PlotsTab:Button({
+    Title = "Show Total Plot Value",
+    Callback = function()
+        local totalValue, fruitCount, allFruits = calculateTotalPlotValue(localPlayer.Name)
+        
+        if fruitCount > 0 then
+            ShowTotalValueDialog(totalValue, fruitCount, localPlayer.Name, true, allFruits)
+        else
+            _G.notify("No fruits found!", 2, "warning")
+        end
+    end
+})
+
+PlotsTab:Section({ Title = "Other Players Plot", TextXAlignment = "Left", TextSize = 14 })
+
+local otherPlayerDropdown = PlotsTab:Dropdown({ 
+    Title = "Select Player", 
+    Values = {"Refresh List"}, 
+    Value = nil, 
+    Multi = false, 
+    AllowNone = true,
+    Callback = function(selected) end
+})
+
+PlotsTab:Button({
+    Title = "Refresh Player List",
+    Callback = function()
+        _G.notify("Refreshing Player List...", 3, "check")
+        _G.refreshPlayerList(otherPlayerDropdown)
+    end
+})
+
+PlotsTab:Button({
+    Title = "Show The Expensive Fruit They have",
+    Callback = function()
+        if not otherPlayerDropdown.Value or otherPlayerDropdown.Value == "Refresh List" then
+            _G.notify("Please select a player first!", 2, "warning")
+            return
+        end
+
+        local mostExpensiveFruit, highestValue = findMostExpensiveFruit(otherPlayerDropdown.Value)
+        
+        if mostExpensiveFruit then
+            ShowDialog(mostExpensiveFruit, highestValue, otherPlayerDropdown.Value)
+        else
+            _G.notify("No fruits found!", 2, "warning")
+        end
+    end
+})
+
+PlotsTab:Button({
+    Title = "Show Total Plot Value",
+    Callback = function()
+        if not otherPlayerDropdown.Value or otherPlayerDropdown.Value == "Refresh List" then
+            _G.notify("Please select a player first!", 2, "warning")
+            return
+        end
+
+        local totalValue, fruitCount, allFruits = calculateTotalPlotValue(otherPlayerDropdown.Value)
+        
+        if fruitCount > 0 then
+            ShowTotalValueDialog(totalValue, fruitCount, otherPlayerDropdown.Value, false, {})
+        else
+            _G.notify("No fruits found in plot!", 2, "warning")
+        end
+    end
+})
+
+local specialFeature = _G.Window:Tab({ Title = "Special Feature", Icon = "cog", Locked = false }) task.wait()
+
+specialFeature:Section({ Title = "Looking for specific fruit/mutation?", TextXAlignment = "Left", TextSize = 14 }) task.wait()
+
+local showPriceValue = false
+
+local toggle = specialFeature:Toggle({ Title = "Show Price", Default = false,
+    Callback = function(Value)
+        showPriceValue = Value _G.notify("Price is now " .. (Value and "visible" or "hidden"), 3, "check")
+    end
+}) task.wait() _G.myConfig:Register( "showprice", toggle)
+toggle:Set(GetConfigValue("ShowPRice", false))
+
+local espManualFruitObjects = {}
+
+local mutationColors = {
+    ["Wet"]         = Color3.fromRGB(64, 164, 223),
+    ["Chilled"]     = Color3.fromRGB(135, 206, 250),
+    ["Choc"]        = Color3.fromRGB(92, 64, 51),
+    ["Moonlit"]     = Color3.fromRGB(153, 141, 255),
+    ["Pollinated"]  = Color3.fromRGB(255, 170, 0),
+    ["Bloodlit"]    = Color3.fromRGB(200, 0, 0),
+    ["Plasma"]      = Color3.fromRGB(208, 43, 137),
+    ["HoneyGlazed"] = Color3.fromRGB(255, 204, 0),
+    ["Heavenly"]    = Color3.fromRGB(255, 249, 160),
+    ["Frozen"]      = Color3.fromRGB(108, 184, 255),
+    ["Zombified"]   = Color3.fromRGB(128, 199, 127),
+    ["Rainbow"]     = Color3.fromRGB(255, 105, 180),
+    ["Shocked"]     = Color3.fromRGB(255, 255, 100),
+    ["Celestial"]   = Color3.fromRGB(255, 0, 255),
+    ["Disco"]       = Color3.fromRGB(255, 105, 180),
+    ["Voidtouched"] = Color3.fromRGB(225, 0, 255),
+    ["Dawnbound"]   = Color3.fromRGB(255, 213, 0),
+    ["Burnt"]       = Color3.fromRGB(40, 40, 40),
+    ["Twisted"]     = Color3.fromRGB(191, 191, 191),
+    ["Cooked"]      = Color3.fromRGB(210, 120, 60),
+    ["Molten"]      = Color3.fromRGB(223, 100, 0),
+    ["Beenaded"]    = Color3.fromRGB(179, 229, 252),
+    ["Gold"]        = Color3.fromRGB(255, 215, 0),
+    ["Windstruck"]  = Color3.fromRGB(162, 185, 209),
+    ["Meteoric"]    = Color3.fromRGB(73, 29, 193),
+    ["Alienlike"]   = Color3.fromRGB(0, 223, 197),
+    ["Galactic"]    = Color3.fromRGB(243, 148, 255),
+    ["Paradisal"]   = Color3.fromRGB(176, 240, 0),
+    ["Plasma"]      = Color3.fromRGB(208, 43, 137),
+    ["Sundried"]    = Color3.fromRGB(207, 93, 0),
+    ["Verdant"]     = Color3.fromRGB(34, 139, 34),
+}
+
+
+function _createFruitESP(model, weightValue, targetList)
+    if not _G.runService:IsClient() then return end
+    local adorneePart = model:FindFirstChildWhichIsA("BasePart") or model.PrimaryPart
+    if not adorneePart or model:FindFirstChild("ESP_KG") then return end
+
+    local ModelName = model.Name
+    local mutationInfo = {}
+    local Variant = model:FindFirstChild("Variant").Value
+
+    if Variant ~= "Normal" then
+        table.insert(mutationInfo, Variant)
+    end
+
+    for _, mutationName in ipairs(_G.sortedMutations) do
+        if model:GetAttribute(mutationName) then
+            table.insert(mutationInfo, mutationName)
+        end
+    end
+
+
+    local plantValue = 0
+    local classValue = Instance.new("StringValue")
+    classValue.Name = "Item_String"
+    classValue.Value = ModelName
+    classValue.Parent = model
+    _G.calculatePlantValue = _G.getModule(_G.modules, "CalculatePlantValue")
+    local success, result = pcall(_G.calculatePlantValue, model)
+    if success then
+        plantValue = result
+    else
+        warn("Failed to calculate plant value:", result)
+    end
+
+    local contentHeight = 25
+    local hasMutations = #mutationInfo > 0
+    local hasPrice = showPriceValue and plantValue > 0
+    if hasMutations then contentHeight += 20 end
+    if hasPrice then contentHeight += 15 end
+    contentHeight += 10
+
+    local contentWidth = (hasMutations or hasPrice) and 180 or 160
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_KG"
+    billboard.Adornee = adorneePart
+    billboard.Size = UDim2.new(0, contentWidth, 0, contentHeight)
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    billboard.Parent = model
+
+    local backgroundFrame = Instance.new("Frame")
+    backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+    backgroundFrame.BackgroundColor3 = Color3.fromRGB(41, 34, 0)
+    backgroundFrame.BackgroundTransparency = 0.2
+    backgroundFrame.BorderSizePixel = 0
+    backgroundFrame.Parent = billboard
+
+    Instance.new("UICorner", backgroundFrame).CornerRadius = UDim.new(0, 6)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(100, 100, 100)
+    stroke.Thickness = 1
+    stroke.Transparency = 0.5
+    stroke.Parent = backgroundFrame
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, -8, 0, 22)
+    nameLabel.Position = UDim2.new(0, 4, 0, 4)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 25)
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    nameLabel.TextSize = 13
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.Text = ModelName .. " " .. string.format("%.3f KG", weightValue.Value)
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.Parent = backgroundFrame
+
+    local currentYPos = 26
+    if hasMutations then
+        local mutationFrame = Instance.new("Frame")
+        mutationFrame.Size = UDim2.new(1, -8, 0, 18)
+        mutationFrame.Position = UDim2.new(0, 4, 0, currentYPos)
+        mutationFrame.BackgroundTransparency = 1
+        mutationFrame.Parent = backgroundFrame
+
+        local prefixLabel = Instance.new("TextLabel")
+        prefixLabel.Size = UDim2.new(0, 55, 1, 0)
+        prefixLabel.Position = UDim2.new(0, 0, 0, 0)
+        prefixLabel.BackgroundTransparency = 1
+        prefixLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+        prefixLabel.TextStrokeTransparency = 0
+        prefixLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        prefixLabel.TextSize = 11
+        prefixLabel.Font = Enum.Font.GothamBold
+        prefixLabel.Text = "mutations: "
+        prefixLabel.TextXAlignment = Enum.TextXAlignment.Left
+        prefixLabel.Parent = mutationFrame
+
+        local currentXPos = 55
+        for i, mutation in ipairs(mutationInfo) do
+            local displayText = mutation .. (i < #mutationInfo and ", " or "")
+            local mutationLabel = Instance.new("TextLabel")
+            mutationLabel.BackgroundTransparency = 1
+            mutationLabel.TextStrokeTransparency = 0
+            mutationLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+            mutationLabel.TextSize = 11
+            mutationLabel.Font = Enum.Font.GothamBold
+            mutationLabel.TextXAlignment = Enum.TextXAlignment.Left
+            mutationLabel.TextColor3 = mutationColors[mutation] or Color3.fromRGB(220, 220, 220)
+            mutationLabel.Text = displayText
+            local textWidth = #displayText * 5
+            mutationLabel.Size = UDim2.new(0, textWidth, 1, 0)
+            mutationLabel.Position = UDim2.new(0, currentXPos, 0, 0)
+            mutationLabel.Parent = mutationFrame
+            currentXPos += textWidth
+        end
+        currentYPos += 18
+    end
+
+    if hasPrice then
+        local priceFrame = Instance.new("Frame")
+        priceFrame.Size = UDim2.new(1, -8, 0, 13)
+        priceFrame.Position = UDim2.new(0, 4, 0, currentYPos)
+        priceFrame.BackgroundTransparency = 1
+        priceFrame.Parent = backgroundFrame
+
+        local iconImage = Instance.new("ImageLabel")
+        iconImage.Size = UDim2.new(0, 12, 0, 12)
+        iconImage.Position = UDim2.new(0, 0, 0, 0)
+        iconImage.BackgroundTransparency = 1
+        iconImage.Image = "rbxassetid://124850631192001"
+        iconImage.Parent = priceFrame
+
+        local priceLabel = Instance.new("TextLabel")
+        priceLabel.Size = UDim2.new(1, -16, 1, 0)
+        priceLabel.Position = UDim2.new(0, 16, 0, 0)
+        priceLabel.BackgroundTransparency = 1
+        priceLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+        priceLabel.TextStrokeTransparency = 0
+        priceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        priceLabel.TextSize = 11
+        priceLabel.Font = Enum.Font.GothamBold
+        priceLabel.Text = formatNumber(plantValue, true)
+        priceLabel.TextXAlignment = Enum.TextXAlignment.Left
+        priceLabel.Parent = priceFrame
+    end
+
+    table.insert(targetList, billboard)
+end
+
+
+function createFruitESP(model, weightValue, targetList)
+    task.defer(function()
+        _createFruitESP(model, weightValue, targetList)
+    end)
+end
+
+local function clearManualESPFruit()
+    for result, target in ipairs(espManualFruitObjects) do if target and target.Parent then target:Destroy() end end
+    espManualFruitObjects = {}
+end
+
+local searchfruit = specialFeature:Dropdown({ Title = "Select Fruit", Values = {}, Value  = {}, Multi  = true, AllowNone = true,
+    Callback = function(Options)
+
+        clearManualESPFruit()
+        _, _, Plants_Physical, _ = GetPlayerFarm(localPlayer.Name)
+        for _, plant in ipairs(Plants_Physical:GetChildren()) do
+            if plant:IsA("Model") and table.find(Options, plant.Name) then
+                local fruitsFolder = plant:FindFirstChild("Fruits") 
+                if fruitsFolder then
+                    for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                        local weight = fruit:FindFirstChild("Weight")
+                        if weight and typeof(weight.Value) == "number" then
+                            createFruitESP(fruit, weight, espManualFruitObjects)
+                        end
+                    end
+                else
+                    local weight = plant:FindFirstChild("Weight")
+                    if weight and typeof(weight.Value) == "number" then
+                        createFruitESP(plant, weight, espManualFruitObjects)
+                    end
+                end
+            end
+        end
+    end
+}) task.wait()
+
+specialFeature:Button({
+    Title = "Refresh",
+    Callback = function()
+        clearManualESPFruit()
+        refreshFruitsList(searchfruit, localPlayer.Name)
+    end
+}) task.wait()
+
+specialFeature:Section({ Title = "Help friends find specific fruit/mutation?", TextXAlignment = "Left", TextSize = 14}) task.wait()
+
+local selectedPlayer = nil
+local selectedPlayerFruits = {}
+
+local fruitDropdownforPlayer = specialFeature:Dropdown({ Title   = "Select Player's Fruit", Values  = { "Refresh List"}, Value   = {}, Multi   = true, AllowNone = true,
+    Callback = function(Options)
+        clearManualESPFruit()
+        if not selectedPlayer then return end
+
+        _, _, Plants_Physical, _ = GetPlayerFarm(selectedPlayer)
+
+        for _, plant in ipairs(Plants_Physical:GetChildren()) do
+            if plant:IsA("Model") and table.find(Options, plant.Name) then
+                local fruitsFolder = plant:FindFirstChild("Fruits") 
+                if fruitsFolder then
+                    for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                        local weight = fruit:FindFirstChild("Weight")
+                        if weight and typeof(weight.Value) == "number" then
+                            createFruitESP(fruit, weight, espManualFruitObjects)
+                        end
+                    end
+                else
+                    local weight = plant:FindFirstChild("Weight")
+                    if weight and typeof(weight.Value) == "number" then
+                        createFruitESP(plant, weight, espManualFruitObjects)
+                    end
+                end
+            end
+        end
+    end
+}) task.wait()
+
+local playerDropdown = specialFeature:Dropdown({ Title = "Select Player", Values = {}, Value = "", Multi = false, AllowNone = true,
+    Callback = function(option)
+        selectedPlayer = option
+        refreshFruitsList(fruitDropdownforPlayer, selectedPlayer)
+    end
+}) task.wait()
+
+specialFeature:Button({
+    Title = "Refresh Player List",
+    Callback = function()
+        _G.refreshPlayerList(playerDropdown)
+    end
+}) task.wait()
+
+local petTab = _G.Window:Tab({ Title = "Pet", Icon = "paw-print", Locked = false }) task.wait()
+
+local autofeed = 0
+local feeding = false
+
+local petfeedspeed = petTab:Slider({
+    Title = "Auto Feed speed",
+    Step = 0.1,
+    Value = {
+        Min = 0,
+        Max = 120,
+        Default = 0,
+    },
+    Callback = function(value)
+        autofeed = value
+    end
+})
+
+local petFeedThread = nil
+
+petTab:Toggle({
+    Title = "Auto Feed Pet",
+    Default = false,
+    Callback = function(Value)
+        feeding = Value
+        if feeding then
+            _G.notify("Auto Feed Pet Enabled", 3, "check")
+
+            local petworkspace = workspace:WaitForChild("PetsPhysical")
+            petFeedThread = task.spawn(function()
+                while feeding do
+                    local lowestHunger = 100
+                    local petToFeed = nil
+
+                    for _, pet in ipairs(petworkspace:GetChildren()) do
+                        local isOwner = pet:GetAttribute("OWNER")
+                        local petuid = pet:GetAttribute("UUID")
+
+                        if isOwner == localPlayer.Name and petuid then
+                            local petGui = _G.players.LocalPlayer:FindFirstChild("PlayerGui")
+                            petGui = petGui and petGui:FindFirstChild("ActivePetUI")
+                            petGui = petGui and petGui:FindFirstChild("Frame")
+                            petGui = petGui and petGui:FindFirstChild("Main")
+                            petGui = petGui and petGui:FindFirstChild("ScrollingFrame")
+                            petGui = petGui and petGui:FindFirstChild(petuid)
+
+                            if petGui then
+                                local hungerBar = petGui:FindFirstChild("PetStats")
+                                hungerBar = hungerBar and hungerBar:FindFirstChild("HUNGER")
+                                hungerBar = hungerBar and hungerBar:FindFirstChild("HUNGER_BAR")
+
+                                if hungerBar and hungerBar:IsA("Frame") then
+                                    local hungerPercent = hungerBar.Size.X.Scale * 100
+                                    if hungerPercent < lowestHunger then
+                                        lowestHunger = hungerPercent
+                                        petToFeed = petuid
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if petToFeed and lowestHunger < 99 then
+                        pcall(function()
+                            local backpack = localPlayer:FindFirstChild("Backpack")
+                            local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+                            local equippedTool = character:FindFirstChildOfClass("Tool")
+                            if equippedTool then equippedTool.Parent = backpack end
+
+                            local equippedCount = 0
+                            for _, item in ipairs(backpack:GetChildren()) do
+                                if equippedCount >= 10 then break end
+                                if item:IsA("Tool") then
+                                    local name = string.lower(item.Name)
+                                    local isSeed = name:find("seed")
+                                    local isKG = name:find("kg")
+                                    local isPet = item:GetAttribute("ItemType") == "Pet"
+                                    local isFavorite = item:GetAttribute("d") == true
+                                    local isBloodlit = preventBloodlitValue and name:find("bloodlit")
+                                    local isMoonlit = preventMoonlitValue and name:find("moonlit")
+                                    local isPollinated = preventPollinatedValue and name:find("pollinated")
+
+                                    if not isSeed and isKG and not isPet and not isFavorite and not isBloodlit and not isMoonlit and not isPollinated then
+                                        item.Parent = character
+                                        equippedCount = equippedCount + 1
+                                    end
+                                end
+                            end
+
+                            local args = { "Feed", petToFeed }
+                            _G.gameEvents:WaitForChild("ActivePetService"):FireServer(unpack(args))
+                        end)
+                    end
+
+                    task.wait(autofeed)
+                end
+            end)
+        else
+            feeding = false
+            unequip_tool()
+            _G.notify("Auto Feed Pet Disabled", 3, "check")
+        end
+    end
+})
+
+local miscTab = _G.Window:Tab({ Title = "Misc", Icon = "settings-2", Locked = false }) task.wait()
+
+local GameNotification = miscTab:Toggle({ Title = "Game Notification", Default = false,
+    Callback = function(Value)
+        local target = localPlayer.PlayerGui.Top_Notification
+        if Value then
+            target.Enabled = false
+        else
+            target.Enabled = true
+        end
+    end
+})
+
+miscTab:Button({
+    Title = "Anti AFK (Default On)",
+    Callback = function()
+        _G.notify("Anti-AFK is already enabled by default.", 3, "check")
+    end
+}) task.wait()
+
+local VirtualUser = _G.getService("VirtualUser")
+
+if not VirtualUser then
+    _G.notify("Anti-AFK is not supported. Your executor doesn't support this feature.", 3, "x")
+else
+    _G.players.LocalPlayer.Idled:Connect(function()
+        VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    end)
+end
+
+if not _G.gameData.release then
+    local loadScriptTab = _G.Window:Tab({ Title = "Load Script", Icon = "newspaper", Locked = false })
+
+
+    local isdex = false
+    local dexplorer = loadScriptTab:Button({
+        Title = "Dexplorer",
+        Callback = function()
+            if isdex then
+                _G.notify("Dexplorer is already loaded", 3, "check")
+                return
+            end
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+            isdex = true
+            _G.notify("Dexplorer Loaded", 3, "check")
+        end
+    }) task.wait()
+
+    local remotesply = loadScriptTab:Button({
+        Title = "RemoteSply (new) ",
+        Callback = function()
+            loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-OctoSpy-22363"))()
+            _G.notify("RemoteSply Loaded", 3, "check")
+        end
+    }) task.wait()
+
+        local remotesply = loadScriptTab:Button({
+        Title = "RemoteSply (old) ",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/SimpleSpyV3/main.lua"))()
+            _G.notify("RemoteSply Loaded", 3, "check")
+        end
+    }) task.wait()
+
+end
+
+miscTab:Button({
+    Title = "Rejoin Server",
+    Callback = function() _G.notify("Rejoining Server", 3, "check") task.wait(1) _G.teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, game.Players.LocalPlayer)
+    end
+}) task.wait()
+
+local function serverhop(option)
+    local placeId = game.PlaceId
+    local serversUrl = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(placeId)
+    
+    local function joinServer(serverId)
+        local success, errorMsg = pcall(function()
+            _G.teleportService:TeleportToPlaceInstance(placeId, serverId)
+        end)
+        
+        if not success then
+            _G.notify("Failed to teleport: " .. tostring(errorMsg), 5, "circle-x")
+        end
+    end
+
+    local success, response = pcall(function()
+        return game:HttpGet(serversUrl)
+    end)
+    
+    if not success then
+        _G.notify("HTTP request failed - may be restricted", 5, "circle-x")
+        return
+    end
+    
+    local data
+    local parseSuccess, parseError = pcall(function()
+        data = _G.httpService:JSONDecode(response)
+    end)
+    
+    if not parseSuccess then
+        _G.notify("Failed to parse server data", 3, "circle-x")
+        return
+    end
+    
+    local servers = data and data.data
+    
+    if not servers or #servers == 0 then
+        _G.notify("No servers found", 3, "circle-x")
+        return
+    end
+    
+    local filteredServers = {}
+    local currentJobId = game.JobId
+    
+    for _, server in pairs(servers) do
+        if server.id and server.playing and server.maxPlayers and 
+           server.id ~= currentJobId and 
+           server.playing < server.maxPlayers then -- Removed check for playing > 0
+            table.insert(filteredServers, server)
+        end
+    end
+
+    if #filteredServers == 0 then
+        _G.notify("No joinable servers available", 3, "circle-x")
+        return
+    end
+    
+    local targetServer = nil
+    
+    if option == "Random Server" then
+        targetServer = filteredServers[math.random(1, #filteredServers)]
+        
+    elseif option == "Least Players" then
+        table.sort(filteredServers, function(a, b)
+            return a.playing < b.playing
+        end)
+        targetServer = filteredServers[1]
+        
+    elseif option == "Crowded" then
+        table.sort(filteredServers, function(a, b)
+            return a.playing > b.playing
+        end)
+        
+        for _, server in ipairs(filteredServers) do
+            local fillPercentage = server.playing / server.maxPlayers
+            if fillPercentage >= 0.7 and server.playing < server.maxPlayers then
+                targetServer = server
+                break
+            end
+        end
+        
+        if not targetServer then
+            targetServer = filteredServers[1]
+        end
+    end
+    
+    if targetServer then
+        local playerInfo = targetServer.playing .. "/" .. targetServer.maxPlayers
+        _G.notify("Joining server with " .. playerInfo .. " players", 3, "info")
+        
+        wait(0.5)
+        joinServer(targetServer.id)
+    else
+        _G.notify("Could not find a suitable server", 3, "circle-x")
+    end
+end
+
+miscTab:Dropdown({
+    Title = "Hop Into Different server",
+    Values = { "Random Server", "Least Players", "Crowded" },
+    Value = "",
+    AllowNone = true,
+    Callback = function(option) 
+        _G.notify("Joining a "..option.."...", 3, "info")
+        serverhop(option)
+    end
+})
+
+miscTab:Button({
+    Title = "Copy Join Server Script",
+    Callback = function()
+        local placeId = game.PlaceId
+        local jobId = game.JobId
+        local joinScript = string.format("game:GetService('TeleportService'):TeleportToPlaceInstance(%d, '%s')", placeId, jobId)
+        
+        pcall(function()  setclipboard(joinScript) _G.notify("Join script copied to clipboard", 3, "check") end)
+    end
+})
+
+local LightingOriginalSettings = {
+    Ambient = _G.lighting.Ambient,
+    Brightness = _G.lighting.Brightness,
+    ClockTime = _G.lighting.ClockTime,
+    FogEnd = _G.lighting.FogEnd,
+    OutdoorAmbient = _G.lighting.OutdoorAmbient,
+}
+
+local lightingTweens = {}
+
+local function stopLightingTweens()
+    for _, tween in pairs(lightingTweens) do if tween then tween:Cancel() end end
+    lightingTweens = {}
+end
+
+local NightMode = miscTab:Toggle({ Title = "Night Mode", Default = false,
+    Callback = function(Value)
+        stopLightingTweens()
+        
+        local tweenInfo = TweenInfo.new(
+            2,
+            Enum.EasingStyle.Quart,
+            Enum.EasingDirection.Out,
+            0,
+            false,
+            0
+        )
+        if Value then _G.notify("Night Mode Enabled", 3, "check")
+            local nightSettings = {
+                Ambient = Color3.fromRGB(70, 70, 100),
+                OutdoorAmbient = Color3.fromRGB(90, 90, 120),
+                Brightness = 30,
+                ClockTime = 20,
+                FogEnd = 500
+            }
+
+            for property, targetValue in pairs(nightSettings) do
+                local tween = _G.tweenService:Create(_G.lighting, tweenInfo, {[property] = targetValue})
+                lightingTweens[property] = tween
+                tween:Play()
+            end
+        else
+            _G.notify("Night Mode Disabled", 3, "check")
+            for property, originalValue in pairs(LightingOriginalSettings) do
+                local tween = _G.tweenService:Create(_G.lighting, tweenInfo, {[property] = originalValue})
+                lightingTweens[property] = tween
+                tween:Play()
+            end
+        end
+    end
+})
+NightMode:Set(true)
+_G.myConfig:Register( "NightMode", NightMode)
+
+local FullbrightOriginalSettings = {
+    Brightness = _G.lighting.Brightness,
+    ClockTime = _G.lighting.ClockTime,
+    FogEnd = _G.lighting.FogEnd,
+    Ambient = _G.lighting.Ambient,
+    OutdoorAmbient = _G.lighting.OutdoorAmbient
+}
+
+
+miscTab:Toggle({
+    Title = "Fullbright",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            _G.lighting.Brightness = 2
+            _G.lighting.ClockTime = 12 -- Noon
+            _G.lighting.FogEnd = 100000
+            _G.lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            _G.lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+
+            addConnection("fullbrightconnection", _G.runService.Heartbeat:Connect(function()
+                _G.lighting.Brightness = 2
+                _G.lighting.ClockTime = 12
+                _G.lighting.FogEnd = 100000
+                _G.lighting.Ambient = Color3.fromRGB(255, 255, 255)
+                _G.lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+            end))
+
+            _G.notify("Fullbright Enabled", 3, "check")
+        else
+            cleanupConnections("fullbrightconnection")
+
+            _G.lighting.Brightness = FullbrightOriginalSettings.Brightness
+            _G.lighting.ClockTime = FullbrightOriginalSettings.ClockTime
+            _G.lighting.FogEnd = FullbrightOriginalSettings.FogEnd
+            _G.lighting.Ambient = FullbrightOriginalSettings.Ambient
+            _G.lighting.OutdoorAmbient = FullbrightOriginalSettings.OutdoorAmbient
+
+            _G.notify("Fullbright Disabled", 3, "check")
+        end
+    end
+})
+
+
+local espConnection = nil
+local espToggle = false
+
+local toggle = miscTab:Toggle({
+    Title = "ESP",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            espToggle = true
+            cleanupConnections("espconnection")
+            _G.notify("ESP Enabled", 3, "check")
+            addConnection("espconnection", _G.runService.Heartbeat:Connect(function()
+                for _, highlight in ipairs(espContainer:GetChildren()) do highlight.Enabled = Value end
+            end))
+        else
+            espToggle = false
+            cleanupConnections("espconnection")
+            for _, highlight in ipairs(espContainer:GetChildren()) do highlight.Enabled = Value end
+            _G.notify("ESP Disabled", 3, "check")
+        end
+    end
+})
+_G.myConfig:Register( "PlayerEsp", toggle)
+
+local FpsBoostOriginalSettings = {
+    GlobalShadows = _G.lighting.GlobalShadows,
+    FogEnd = _G.lighting.FogEnd,
+    WaterWaveSize = _G.terrain and _G.terrain.WaterWaveSize or 0,
+    WaterWaveSpeed = _G.terrain and _G.terrain.WaterWaveSpeed or 0,
+    WaterReflectance = _G.terrain and _G.terrain.WaterReflectance or 0,
+    WaterTransparency = _G.terrain and _G.terrain.WaterTransparency or 0,
+}
+
+miscTab:Toggle({
+    Title = "FPS Boost",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            _G.notify("FPS Boost Enabled", 3, "check")
+             _G.lighting.GlobalShadows = false
+             _G.lighting.FogEnd = 100000
+            if _G.terrain then
+                _G.terrain.WaterWaveSize = 0
+                _G.terrain.WaterWaveSpeed = 0
+                _G.terrain.WaterReflectance = 0
+                _G.terrain.WaterTransparency = 1
+            end
+        else
+            _G.notify("FPS Boost Disabled", 3, "check")
+             _G.lighting.GlobalShadows = FpsBoostOriginalSettings.GlobalShadows
+             _G.lighting.FogEnd = FpsBoostOriginalSettings.FogEnd
+            if _G.terrain then
+                _G.terrain.WaterWaveSize = FpsBoostOriginalSettings.WaterWaveSize
+                _G.terrain.WaterWaveSpeed = FpsBoostOriginalSettings.WaterWaveSpeed
+                _G.terrain.WaterReflectance = FpsBoostOriginalSettings.WaterReflectance
+                _G.terrain.WaterTransparency = FpsBoostOriginalSettings.WaterTransparency
+            end
+        end
+    end
+})
+
+local trollTab = _G.Window:Tab({ Title = "Troll", Icon = "locate", Locked = false })
+
+local flinging = false
+local dir = 0.1
+
+trollTab:Toggle({
+    Title = "Walk Fling",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            if not character or not character:FindFirstChild("HumanoidRootPart") then
+                _G.notify("Missing character or root part.", 3, "x")
+                return
+            end
+
+            _G.notify("Walk Fling Enabled", 3, "check")
+            cleanupConnections("walkflingconnection")
+            flinging = true
+
+            addConnection("walkflingconnection", _G.runService.Heartbeat:Connect(function()
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                if not flinging or not rootPart or not rootPart.Parent or not rootPart.Parent.Parent then
+                    flinging = false
+                    return
+                end
+
+                local velocity = rootPart.Velocity
+                rootPart.Velocity = ((velocity * 10000) + Vector3.new(0, 10000, 0))
+                _G.runService.RenderStepped:Wait()
+                rootPart.Velocity = velocity
+                _G.runService.RenderStepped:Wait()
+                rootPart.Velocity = velocity + Vector3.new(0, dir, 0)
+                dir *= -1
+            end))
+        else
+            _G.notify("Walk Fling Disabled", 3, "check")
+            flinging = false
+            cleanupConnections("walkflingconnection")
+        end
+    end
+})
+
+local function createEsp(player)
+    if player == localPlayer then return end
+
+    local function addHighlight(char)
+        if not char or not char:IsA("Model") then return end
+
+        local highlight = Instance.new("Highlight")
+        highlight.FillTransparency = 1
+        highlight.OutlineTransparency = 0
+        highlight.OutlineColor = Color3.new(1, 1, 1)
+        highlight.Adornee = char
+        highlight.Name = player.Name
+        highlight.Enabled = espToggle
+        highlight.Parent = espContainer
+    end
+    if player.Character then addHighlight(player.Character) end
+    player.CharacterAdded:Connect(function(char) task.wait(1) local existing = espContainer:FindFirstChild(player.Name) if existing then existing:Destroy() end addHighlight(char)
+    end)
+end
+
+for _, player in ipairs(_G.players:GetPlayers()) do createEsp(player) end
+_G.players.PlayerAdded:Connect(createEsp)
+_G.players.PlayerRemoving:Connect(function(player) local esp = espContainer:FindFirstChild(player.Name) if esp then esp:Destroy() end end)
+
+SaveConfig:Unlock()
+LoadConfig:Unlock()
+
